@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "base44:runtime/actors": "./runtime.ts",
+    "@base44/sdk": "npm:@base44/sdk@0.8.48",
+    "axios": "npm:axios@1",
+    "jose": "npm:jose@5",
+    "mongodb": "npm:mongodb@6"
+  },
+  "lint": { "rules": { "exclude": ["no-explicit-any"] } }
+}

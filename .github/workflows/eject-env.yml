@@ -1,0 +1,49 @@
+name: Eject env
+on:
+  workflow_dispatch:
+    inputs:
+      delivery_url:
+        description: Signed one-time delivery address (POST target). Empty = write a run artifact instead.
+        required: false
+        default: ''
+      requester:
+        description: Free-text note of what requested this eject (shows in the run list).
+        required: false
+        default: ''
+      profile:
+        description: "full = everything (the default); sandbox = no deploy credentials and no data doors (the builder sandbox of a HIPAA migration)."
+        required: false
+        default: 'full'
+
+permissions:
+  contents: read
+
+jobs:
+  eject:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Eject
+        env:
+          EB44_DELIVERY_URL: ${{ inputs.delivery_url }}
+          EB44_EJECT_PROFILE: ${{ inputs.profile }}
+        run: |
+          umask 077
+          cat > "$RUNNER_TEMP/eb44-secrets.json" <<'EB44_SECRETS_JSON'
+          ${{ toJSON(secrets) }}
+          EB44_SECRETS_JSON
+          export EB44_SECRETS_FILE="$RUNNER_TEMP/eb44-secrets.json"
+          node .escapebase44/runner/eject-env.mjs
+
+      - name: Upload artifact
+        if: ${{ inputs.delivery_url == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: eb44-env
+          path: eb44-env/
+          retention-days: 1

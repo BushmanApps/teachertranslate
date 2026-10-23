@@ -1,0 +1,4 @@
+{
+  "name": "extractTextFromFile",
+  "entry": "entry.ts"
+}

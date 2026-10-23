@@ -1,0 +1,122 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "created_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date and time when the user signed up"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Display name of the user"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address used for Stripe subscription"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description or note (up to 1000 characters)"
+    },
+    "scans_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Total number of free scans used"
+    },
+    "is_subscribed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Effective Pro access \u2014 reconciled from Stripe subscription status, admin_override, and lifetime_pro. Written by checkSubscription and the Stripe webhook; do not set manually (use admin_override instead)."
+    },
+    "admin_override": {
+      "type": "string",
+      "enum": [
+        "grant",
+        "revoke",
+        null
+      ],
+      "nullable": true,
+      "default": null,
+      "description": "Admin-only manual override of Pro access. 'grant' = force Pro regardless of Stripe; 'revoke' = force non-Pro regardless of Stripe; null = Stripe subscription status determines access. Set from the dashboard."
+    },
+    "lifetime_pro": {
+      "type": "boolean",
+      "default": false,
+      "description": "Admin-only grant of unlimited Pro access with no Stripe subscription or renewal date. Set from the dashboard; never settable by the user."
+    },
+    "subscription_renewal": {
+      "type": "string",
+      "format": "date",
+      "description": "Subscription renewal date"
+    },
+    "auto_renew_disabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, subscription will not auto-renew"
+    },
+    "renewal_warning_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether 2-week renewal warning was sent"
+    },
+    "welcome_email_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of Pro welcome email send claims (sent only once)"
+    },
+    "refund_eligible": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether eligible for refund (14 days from first Pro)"
+    },
+    "refund_eligible_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Refund eligibility expiry datetime"
+    },
+    "consent_given_date": {
+      "type": "string",
+      "nullable": true,
+      "description": "Date and time the user consented to the Privacy Policy and Terms of Use (including reasonable use of the app). Can be emptied to indicate consent not yet given or withdrawn."
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

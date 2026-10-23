@@ -1,0 +1,27 @@
+{
+  "name": "expireRefundEligibility",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "id": "6a366fc74e79bbdce852b177",
+      "type": "scheduled",
+      "name": "Expire Refund Eligibility Daily",
+      "description": null,
+      "is_active": false,
+      "function_args": null,
+      "schedule_mode": "recurring",
+      "schedule_type": "simple",
+      "cron_expression": null,
+      "repeat_unit": "days",
+      "repeat_interval": 1,
+      "one_time_date": null,
+      "repeat_on_days": null,
+      "repeat_on_day_of_month": null,
+      "start_time": "16:00",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null,
+      "trigger_conditions": null
+    }
+  ]
+}

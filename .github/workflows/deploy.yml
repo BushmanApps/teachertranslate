@@ -1,0 +1,85 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time: two runs deploying the same box at once interleave
+# their uploads and restarts (2026-09-17: one Publish, two runs on the same
+# commit, a second apart). A run that is still waiting when a newer push
+# arrives is replaced by the newer one. GitHub queues pushes seconds apart in
+# no fixed order, so the run left can be an older commit's (2026-10-21: four
+# pushes in five seconds, the second one's run kept, the newest cancelled) —
+# such a run starts one for the branch's newest commit and deploys nothing
+# itself: the newest tree deploys, once, in a run that is its own. GitHub not
+# answering (after three tries), or refusing to start the run: this run
+# deploys its own commit, as every run did before.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Newest commit
+        id: newest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=true
+          tip=""
+          for attempt in 1 2 3; do
+            tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$GITHUB_REF_NAME" --jq .object.sha) && break
+            tip=""
+            sleep 5
+          done
+          if [ -n "$tip" ] && [ "$tip" != "$GITHUB_SHA" ]; then
+            if gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"; then
+              echo "$GITHUB_REF_NAME is at $tip, newer than $GITHUB_SHA: its deploy is started"
+              current=false
+            fi
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.newest.outputs.current == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.newest.outputs.current == 'true'
+        with:
+          node-version: '20'
+
+      - name: Deploy
+        if: steps.newest.outputs.current == 'true'
+        run: |
+          umask 077
+          cat > "$RUNNER_TEMP/eb44-secrets.json" <<'EB44_SECRETS_JSON'
+          ${{ toJSON(secrets) }}
+          EB44_SECRETS_JSON
+          export EB44_SECRETS_FILE="$RUNNER_TEMP/eb44-secrets.json"
+          node .escapebase44/runner/run-deploy.mjs
+
+      # Migration day: the run's report to the migration. The runner sends it
+      # itself; when it could not get it through, this step sends the runner's
+      # own report again. Only when the runner died before it had anything to
+      # say (OOM, runner eviction) does it say the deploy failed. Does nothing
+      # after migration day — the report secret no longer exists then.
+      - name: Report
+        if: always() && steps.newest.outputs.current == 'true'
+        env:
+          EB44_REPORT_URL: ${{ secrets.EB44_REPORT_URL }}
+          EB44_JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ -z "$EB44_REPORT_URL" ] || [ -f "$RUNNER_TEMP/eb44-report.delivered" ]; then
+            exit 0
+          fi
+          if [ -f "$RUNNER_TEMP/eb44-report.json" ]; then
+            curl -fsS --retry 8 --retry-all-errors --max-time 120 -X POST "$EB44_REPORT_URL" -H "Content-Type: application/json" --data-binary @"$RUNNER_TEMP/eb44-report.json"
+          elif [ "$EB44_JOB_STATUS" = "failure" ]; then
+            curl -fsS --retry 8 --retry-all-errors --max-time 120 -X POST "$EB44_REPORT_URL" -H "Content-Type: application/json" --data '{"success":false,"error":"Workflow failed before runner could report - see Actions logs"}'
+          fi

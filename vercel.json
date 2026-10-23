@@ -1,0 +1,54 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "regions": [
+    "syd1"
+  ],
+  "functions": {
+    "api/index.py": {
+      "excludeFiles": "dist/assets/**"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000"
+      },
+      "continue": true
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index"
+    },
+    {
+      "src": "/functions/(.*)",
+      "dest": "/api/index"
+    },
+    {
+      "src": "/health",
+      "dest": "/api/index"
+    },
+    {
+      "src": "/((.*/)?[^/.]*|.*\\.html?)",
+      "dest": "/api/index"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(manifest\\.json|robots\\.txt|sitemap\\.xml|llms\\.txt|favicon\\.ico|apple-touch-icon[^/]*\\.png)",
+      "dest": "/api/index"
+    },
+    {
+      "src": "/\\.well-known/(.*)",
+      "dest": "/api/index"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index"
+    }
+  ]
+}

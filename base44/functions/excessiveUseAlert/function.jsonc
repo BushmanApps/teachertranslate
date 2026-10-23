@@ -1,0 +1,19 @@
+{
+  "name": "excessiveUseAlert",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "id": "6a450b695132d7457da19736",
+      "type": "entity",
+      "name": "Excessive Usage Alert",
+      "description": "Triggers excessive use email when a user scans more than 19 reports in 21 days",
+      "is_active": false,
+      "function_args": null,
+      "entity_name": "Translation",
+      "event_types": [
+        "create"
+      ],
+      "trigger_conditions": null
+    }
+  ]
+}

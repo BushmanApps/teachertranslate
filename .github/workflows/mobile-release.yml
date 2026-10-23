@@ -1,0 +1,325 @@
+# EscapeBase44 mobile kit v5
+#
+# Build store-ready mobile apps from this repo — no Mac, no Android Studio.
+# Your EscapeBase44 success page runs this for you and shows what happened;
+# the Actions tab's "Run workflow" button does the same.
+#
+# iPhone: needs the App Store Connect API key the success page asked for
+# (repo secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) and your Apple team id
+# (APPLE_TEAM_ID in .escapebase44/config.json). Before the Mac starts,
+# mobile/asc-preflight.mjs checks the key and your App Store record with
+# Apple, and picks the version and build number.
+# Android: builds a signed Google Play bundle with the upload keystore the
+# success page created (ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD —
+# one key under the alias `upload`) plus an installable APK, and
+# publishes both as this repo's "Mobile builds" release.
+name: Mobile release
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Which platform to build"
+        type: choice
+        options: [ios, android, both]
+        default: both
+      version:
+        description: "Version to build (e.g. 1.2). Empty = the next one after what App Store Connect has (1.0 on Android)."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Ask App Store Connect
+    if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: mobile-ios
+      cancel-in-progress: false
+    outputs:
+      bundle_id: ${{ steps.asc.outputs.bundle_id }}
+      asc_app_id: ${{ steps.asc.outputs.asc_app_id }}
+      marketing_version: ${{ steps.asc.outputs.marketing_version }}
+      build_number: ${{ steps.asc.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Ask App Store Connect
+        id: asc
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          MOBILE_VERSION: ${{ inputs.version }}
+        run: node mobile/asc-preflight.mjs
+
+  ios:
+    name: Build and upload to TestFlight
+    needs: preflight
+    runs-on: macos-latest
+    timeout-minutes: 45
+    concurrency:
+      group: mobile-ios
+      cancel-in-progress: false
+    env:
+      BUNDLE_ID: ${{ needs.preflight.outputs.bundle_id }}
+      ASC_APP_ID: ${{ needs.preflight.outputs.asc_app_id }}
+      MARKETING_VERSION: ${{ needs.preflight.outputs.marketing_version }}
+      BUILD_NUMBER: ${{ needs.preflight.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Pick the newest Xcode with an iOS SDK
+        run: |
+          picked=""
+          for x in $(ls -d /Applications/Xcode_[0-9]*.app 2>/dev/null | grep -vi beta | sort -t_ -k2 -V -r); do
+            if DEVELOPER_DIR="$x/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version >/dev/null 2>&1; then picked="$x"; break; fi
+          done
+          if [ -z "$picked" ]; then
+            echo 'EB44 {"code":"no-xcode"}'
+            echo "::error::Stopped before building (no-xcode). Your EscapeBase44 success page says what to do."
+            exit 1
+          fi
+          sudo xcode-select -s "$picked/Contents/Developer"
+          echo "Using $picked — iOS SDK $(xcrun --sdk iphoneos --show-sdk-version), $(xcodebuild -version | head -1)"
+      - name: Read the Apple team id
+        run: |
+          team=$(node -p 'require("./.escapebase44/config.json").env.APPLE_TEAM_ID || ""')
+          if [ -z "$team" ]; then
+            echo 'EB44 {"code":"missing-team-id"}'
+            echo "::error::Stopped before building (missing-team-id). Your EscapeBase44 success page says what to do."
+            exit 1
+          fi
+          echo "APPLE_TEAM_ID=$team" >> "$GITHUB_ENV"
+      - run: npm install
+      - name: Generate the iOS project
+        env:
+          MOBILE_IOS_BUNDLE_ID: ${{ env.BUNDLE_ID }}
+          MOBILE_IOS_VERSION: ${{ env.MARKETING_VERSION }}
+          MOBILE_IOS_BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+        run: node mobile/setup.mjs ios
+      - name: Write the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+      - name: Archive
+        run: |
+          # Unsigned on purpose: a signed archive would want a development
+          # profile, and Apple refuses those for a team with no registered
+          # device. The export below signs with the App Store profile instead.
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App \
+            -configuration Release -destination generic/platform=iOS \
+            -archivePath build/App.xcarchive archive -quiet \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee /tmp/xcodebuild.log
+      - name: Sign the archive with its entitlements
+        run: |
+          # Entitlements live inside the code signature, and the export can
+          # only keep what the archive already carries — an unsigned archive
+          # has none, so push would silently never work. An ad-hoc signature
+          # needs no certificate; the export replaces it with Apple's.
+          APP=build/App.xcarchive/Products/Applications/App.app
+          ENT=$(mktemp -d)/App.entitlements
+          cp ios/App/App/App.entitlements "$ENT"
+          /usr/bin/plutil -replace aps-environment -string production "$ENT"
+          for nested in "$APP"/Frameworks/* "$APP"/PlugIns/*.appex; do
+            if [ -e "$nested" ]; then codesign --force --sign - --timestamp=none "$nested"; fi
+          done
+          codesign --force --sign - --timestamp=none --entitlements "$ENT" "$APP"
+          codesign --verify --deep --strict "$APP"
+          OUT=$(mktemp -d)/entitlements.plist
+          codesign -d --entitlements :- "$APP" > "$OUT" 2>/dev/null || true
+          aps=$(/usr/libexec/PlistBuddy -c "Print :aps-environment" "$OUT" 2>/dev/null || true)
+          if [ "$aps" != "production" ]; then
+            echo 'EB44 {"code":"archive-entitlement-missing"}'
+            echo "::error::The archived app carries no push entitlement — a kit defect, not yours. EscapeBase44 has been told."
+            exit 1
+          fi
+          echo "Archived $BUNDLE_ID $MARKETING_VERSION ($BUILD_NUMBER), entitled for push."
+      - name: Export the signed app
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          # destination "export" and a separate upload, never "upload":
+          # measured on a real account, "upload" can ship the archive's own
+          # signature and get refused (ITMS-90035); "export" with the
+          # certificate named re-signs to Apple Distribution, and the IPA is
+          # checked below before it leaves. /usr/bin first: the export stages
+          # the IPA with the system rsync's dialect, and a Homebrew rsync ahead
+          # of it dies as "exportArchive Copy failed" (exit 70).
+          cat > build/export.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          PATH="/usr/bin:/bin:$PATH" xcodebuild -exportArchive -archivePath build/App.xcarchive \
+            -exportOptionsPlist build/export.plist -exportPath build/out \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee /tmp/export.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Apple's actual reason is in the distribution logs, not in
+            # xcodebuild's summary line — print them so it can be read.
+            for d in $(find /var/folders "${TMPDIR:-/tmp}" -type d -name '*.xcdistributionlogs' 2>/dev/null | sort -u); do
+              echo "::group::$d"
+              find "$d" -type f -name '*.log' -exec sh -c 'echo "--- $1"; tail -n 80 "$1"' _ {} \;
+              echo "::endgroup::"
+            done
+            exit "$status"
+          fi
+          # What ships is checked, not what xcodebuild said: the app inside the
+          # IPA must be signed by Apple Distribution (the export re-signed it),
+          # carry the production push entitlement, and still carry every
+          # entitlement the archive was signed with — the export drops one
+          # whose capability the App ID lacks, without failing.
+          IPA=$(ls build/out/*.ipa | head -1)
+          CHECK=$(mktemp -d)
+          ditto -x -k "$IPA" "$CHECK"
+          APP=$(ls -d "$CHECK"/Payload/*.app | head -1)
+          codesign -dvv "$APP" 2> "$CHECK/signature.txt" || true
+          codesign -d --entitlements :- "$APP" > "$CHECK/entitlements.plist" 2>/dev/null || true
+          aps=$(/usr/libexec/PlistBuddy -c "Print :aps-environment" "$CHECK/entitlements.plist" 2>/dev/null || true)
+          if ! grep -q "^Authority=Apple Distribution" "$CHECK/signature.txt" || [ "$aps" != "production" ]; then
+            echo "signed by: $(grep '^Authority=' "$CHECK/signature.txt" | head -1); aps-environment=$aps"
+            echo 'EB44 {"code":"export-not-resigned"}'
+            echo "::error::The exported app is not signed for the App Store — a kit defect, not yours. EscapeBase44 has been told."
+            exit 1
+          fi
+          plutil -convert json -o "$CHECK/wanted.json" ios/App/App/App.entitlements
+          plutil -convert json -o "$CHECK/kept.json" "$CHECK/entitlements.plist"
+          node -e '
+            const wanted = require(process.argv[1]), kept = require(process.argv[2]);
+            const lost = Object.keys(wanted).filter((k) => !(k in kept));
+            if (lost.length) {
+              console.log("EB44 " + JSON.stringify({ code: "entitlement-not-kept", entitlements: lost }));
+              console.log("::error::Apple left " + lost.join(", ") + " out of the signed app. Your EscapeBase44 success page says what to do.");
+              process.exit(1);
+            }
+            console.log("Every entitlement kept: " + Object.keys(wanted).join(", "));
+          ' "$CHECK/wanted.json" "$CHECK/kept.json"
+          echo "Exported $(basename "$IPA"): signed by Apple Distribution."
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          # altool finds the key by name under API_PRIVATE_KEYS_DIR — the file
+          # written before the archive. Its OUTPUT is the verdict: it can
+          # print a validation ERROR and still exit 0 (measured).
+          export API_PRIVATE_KEYS_DIR="$HOME/private_keys"
+          IPA=$(ls build/out/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee /tmp/upload.log
+          if grep -q "ERROR" /tmp/upload.log || ! grep -q "UPLOAD SUCCEEDED" /tmp/upload.log; then
+            echo "::error::Apple did not take the upload — its own words are above."
+            exit 1
+          fi
+          echo "EB44 {\"kind\":\"uploaded\",\"platform\":\"ios\",\"bundleId\":\"$BUNDLE_ID\",\"ascAppId\":\"$ASC_APP_ID\",\"version\":\"$MARKETING_VERSION\",\"buildNumber\":\"$BUILD_NUMBER\"}"
+
+  android:
+    name: Build for Google Play
+    if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    concurrency:
+      group: mobile-android
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Check the upload keystore is on the repo
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_B64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo 'EB44 {"code":"missing-keystore"}'
+            echo "::error::Stopped before building (missing-keystore). Your EscapeBase44 success page says what to do."
+            exit 1
+          fi
+      - run: npm install
+      - name: Generate the Android project
+        env:
+          MOBILE_VERSION: ${{ inputs.version }}
+          FCM_SERVICE_ACCOUNT_JSON_B64: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON_B64 }}
+        run: node mobile/setup.mjs android
+      - name: Build
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          cd android
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > app/upload.keystore
+          # One key under the alias `upload`, one password for the store and
+          # the key (a PKCS#12). The upload certificate Google Play will see —
+          # its SHA-256 is what Play shows under "Upload key certificate".
+          keytool -list -v -keystore app/upload.keystore -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias upload | grep -E "Alias name|Valid from|SHA256:"
+          # The upload certificate itself (public), for the success page: what
+          # links that open the app are checked against, and what an upload
+          # key reset on Google Play asks for.
+          cert=$(keytool -exportcert -keystore app/upload.keystore -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias upload | base64 | tr -d '\n')
+          echo "EB44 {\"kind\":\"upload-certificate\",\"der\":\"$cert\"}"
+          # Both files are signed with the upload key — the .apk too, so each
+          # one installs over the one before it on a phone (a debug key is a
+          # new one on every build machine) and links that open the app check
+          # out against it. store.file must be absolute: Gradle resolves a
+          # relative value against the daemon's working dir, not the app module.
+          ./gradlew --no-daemon bundleRelease assembleRelease \
+            -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias=upload \
+            -Pandroid.injected.signing.key.password="$ANDROID_KEYSTORE_PASSWORD"
+      - name: Publish on this repo's "Mobile builds" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build
+          cp android/app/build/outputs/bundle/release/app-release.aab "build/teachertranslate-android.aab"
+          cp android/app/build/outputs/apk/release/app-release.apk "build/teachertranslate-android.apk"
+          if ! gh release view mobile-builds >/dev/null 2>&1; then
+            gh release create mobile-builds --target "$GITHUB_SHA" --prerelease --title "Mobile builds" \
+              --notes "The latest Android files built by the Mobile release workflow. The .apk installs on any Android phone; the .aab is the file Google Play takes."
+          fi
+          gh release upload mobile-builds "build/teachertranslate-android.aab" "build/teachertranslate-android.apk" --clobber
+          echo 'EB44 {"kind":"published","platform":"android","apk":"teachertranslate-android.apk","aab":"teachertranslate-android.aab"}'
+      - name: Upload to Google Play (internal testing)
+        env:
+          IAP_GOOGLE_SA_JSON_B64: ${{ secrets.IAP_GOOGLE_SA_JSON_B64 }}
+        run: |
+          # The service account the purchases step asks for, with "Release
+          # apps to testing tracks" in the Play Console. Google takes an
+          # app's first bundle only by hand; every later one lands here.
+          if [ -z "$IAP_GOOGLE_SA_JSON_B64" ]; then
+            echo "No Play service account on the repo — the .aab is on the release for a manual upload."
+            exit 0
+          fi
+          PACKAGE=$(node --input-type=module -e 'import { androidIdentity } from "./mobile/native-patches.mjs"; console.log(androidIdentity(process.cwd(), process.env).packageName)')
+          node mobile/play-upload.mjs "build/teachertranslate-android.aab" "$PACKAGE"

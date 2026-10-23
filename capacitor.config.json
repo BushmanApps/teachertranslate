@@ -1,0 +1,22 @@
+{
+  "appId": "com.eb44.app69fc81cf4f6a0ae5ab617e2b",
+  "appName": "Teacher Translate",
+  "webDir": "dist",
+  "server": {
+    "url": "https://teachertranslate.eb44.app"
+  },
+  "appendUserAgent": "EB44MobileApp",
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "banner",
+        "list"
+      ]
+    }
+  }
+}

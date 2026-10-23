@@ -1,0 +1,103 @@
+{
+  "name": "Translation",
+  "type": "object",
+  "properties": {
+    "creator_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address of the user who created this translation"
+    },
+    "original_comments": {
+      "type": "array",
+      "description": "Individual original teacher sentences that were translated",
+      "items": {
+        "type": "string"
+      }
+    },
+    "honest_helpful_translation": {
+      "type": "string",
+      "description": "The Honest mode translation"
+    },
+    "brutal_translation": {
+      "type": "string",
+      "description": "The Hilarious mode translation (funny, savage but never mean)"
+    },
+    "brutal_direct_translation": {
+      "type": "string",
+      "description": "The Brutal mode translation (very direct, slightly offensive teacher-speak)"
+    },
+    "sections": {
+      "type": "array",
+      "description": "Full sections data with subject breakdowns, curriculum codes, and activity suggestions",
+      "items": {
+        "type": "object"
+      }
+    },
+    "student_id": {
+      "type": "string",
+      "description": "ID of the student at time of translation"
+    },
+    "student_year": {
+      "type": "string",
+      "description": "Year level of the student at time of translation"
+    },
+    "student_name": {
+      "type": "string",
+      "description": "Name of the student at time of translation (cached)"
+    },
+    "performance_level": {
+      "type": "string",
+      "enum": [
+        "ahead",
+        "average",
+        "behind",
+        "unknown"
+      ],
+      "description": "AI assessment of whether the student is ahead, average, or behind year level expectations"
+    },
+    "performance_summary": {
+      "type": "string",
+      "description": "Plain English summary of the student's performance level relative to year expectations"
+    },
+    "subject_area": {
+      "type": "string",
+      "description": "Subject or area of the report (e.g. Maths, English, Science)"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "honest_helpful",
+        "hilarious",
+        "brutal"
+      ],
+      "description": "Which mode was used for this translation"
+    },
+    "translation_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date and time when the translation was performed (AEDT/AEST)"
+    },
+    "comments": {
+      "type": "string",
+      "description": "Short user-added notes about the translation, e.g. semester, teacher name"
+    }
+  },
+  "required": [
+    "original_comments",
+    "student_year"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
