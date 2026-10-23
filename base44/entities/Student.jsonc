@@ -1,0 +1,40 @@
+{
+  "name": "Student",
+  "type": "object",
+  "properties": {
+    "student_name": {
+      "type": "string",
+      "description": "Name of the student"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description or note (up to 1000 characters)"
+    },
+    "student_year": {
+      "type": "string",
+      "description": "Australian school year level of the student"
+    },
+    "creator_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email of the UserProfile that created this student"
+    }
+  },
+  "required": [
+    "student_year"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

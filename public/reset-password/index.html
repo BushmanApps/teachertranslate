@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+      padding: 16px;
+      color: #0f172a;
+    }
+
+    .page { width: 100%; max-width: 448px; }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(to right, #e2e8f0, #cbd5e1, #e2e8f0);
+    }
+
+    .card-body {
+      padding: 32px;
+    }
+    @media (min-width: 640px) { .card-body { padding: 40px; } }
+    @media (min-width: 768px) { .card-body { padding: 48px 40px; } }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 24px;
+    }
+    @media (min-width: 640px) { .card-content { gap: 32px; } }
+
+    /* Logo */
+    .logo-wrap {
+      position: relative;
+    }
+    .logo-glow {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom right, #e2e8f0, #cbd5e1);
+      border-radius: 50%;
+      filter: blur(16px);
+      opacity: 0.3;
+    }
+    .logo {
+      position: relative;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      ring: 4px solid rgba(255, 255, 255, 0.5);
+      border: 4px solid rgba(255, 255, 255, 0.5);
+    }
+    @media (min-width: 640px) { .logo { width: 96px; height: 96px; } }
+
+    /* Header */
+    .header { display: flex; flex-direction: column; gap: 8px; }
+    @media (min-width: 640px) { .header { gap: 12px; } }
+    .header h1 {
+      font-size: 24px; font-weight: 700; color: #0f172a; letter-spacing: -0.025em;
+    }
+    @media (min-width: 640px) { .header h1 { font-size: 30px; } }
+    .header p {
+      font-size: 14px; font-weight: 500; color: #64748b;
+    }
+    @media (min-width: 640px) { .header p { font-size: 16px; } }
+
+    /* Forms */
+    .form-content { width: 100%; }
+    form { display: flex; flex-direction: column; gap: 16px; }
+    @media (min-width: 640px) { form { gap: 20px; } }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .fields { display: flex; flex-direction: column; gap: 12px; }
+    @media (min-width: 640px) { .fields { gap: 16px; } }
+
+    label {
+      font-size: 14px; font-weight: 500; color: #334155;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+    .input-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      width: 16px; height: 16px; color: #94a3b8; pointer-events: none;
+    }
+    input[type="email"], input[type="password"], input[type="text"] {
+      width: 100%;
+      padding: 10px 14px 10px 40px;
+      height: 44px;
+      background: rgba(248, 250, 252, 0.5);
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 14px;
+      color: #0f172a;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    @media (min-width: 640px) {
+      input[type="email"], input[type="password"], input[type="text"] { height: 48px; }
+    }
+    input:focus { border-color: #94a3b8; }
+    input::placeholder { color: #94a3b8; }
+    input:disabled { opacity: 0.5; }
+
+    /* OTP inputs */
+    .otp-container {
+      display: flex; gap: 8px; justify-content: center;
+    }
+    input.otp-input {
+      width: 44px; height: 52px;
+      text-align: center;
+      font-size: 20px; font-weight: 600;
+      padding: 0;
+      background: rgba(248, 250, 252, 0.5);
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .otp-input:focus { border-color: #94a3b8; }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%;
+      height: 44px;
+      background: #0f172a;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    @media (min-width: 640px) { .btn-primary { height: 48px; } }
+    .btn-primary:hover { background: #1e293b; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-oauth {
+      width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 14px 20px;
+      background: #fff;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-oauth + .btn-oauth { margin-top: 12px; }
+    .btn-oauth:hover { background: #f8fafc; border-color: #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .btn-oauth:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-oauth-apple { background: #000; color: #fff; border-color: #000; }
+    .btn-oauth-apple:hover { background: #1a1a1a; border-color: #1a1a1a; }
+
+    .btn-back, .btn-link {
+      background: none; border: none; color: #64748b;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: color 0.15s; padding: 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .btn-back:hover, .btn-link:hover { color: #0f172a; }
+    /* The `back` icon SVG is raw inline (no width/height attrs and no
+       wrapper that sets a size — unlike `.input-icon` for mail/lock or
+       `.icon-circle svg` for the OTP/reset hero). Without this rule the
+       browser falls back to the default SVG box and the arrow renders
+       huge, pushing "Back to sign in" into weird wraps on register / OTP
+       / forgot screens. `flex-shrink: 0` keeps it stable next to long
+       text inside the flex container. */
+    .btn-back svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .links {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    @media (min-width: 640px) {
+      .links { flex-direction: row; justify-content: space-between; }
+    }
+
+    /* Divider */
+    .divider {
+      position: relative;
+      margin: 24px 0;
+      display: flex; align-items: center;
+    }
+    .divider::before, .divider::after {
+      content: ""; flex: 1; height: 1px; background: #e2e8f0;
+    }
+    .divider span {
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Alerts */
+    .alert {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .alert-error {
+      background: rgba(254, 242, 242, 0.7);
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+    .alert-success {
+      background: rgba(240, 253, 244, 0.7);
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+
+    /* Icon in circle (for OTP, reset) */
+    .icon-circle {
+      width: 56px; height: 56px;
+      background: #f1f5f9;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+    }
+    @media (min-width: 640px) { .icon-circle { width: 64px; height: 64px; margin-bottom: 16px; } }
+    .icon-circle svg { width: 28px; height: 28px; color: #334155; }
+    @media (min-width: 640px) { .icon-circle svg { width: 32px; height: 32px; } }
+
+    .sub-header {
+      display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;
+    }
+    .sub-header h2 { font-size: 20px; font-weight: 700; color: #0f172a; }
+    @media (min-width: 640px) { .sub-header h2 { font-size: 24px; } }
+    .sub-header p { font-size: 14px; color: #475569; }
+    @media (min-width: 640px) { .sub-header p { font-size: 16px; } }
+    .sub-header .email-highlight { font-weight: 500; color: #0f172a; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-screen {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #94a3b8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading-screen">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <div id="app" class="page hidden"></div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@base44/sdk";
+
+    // %%CONFIG_START%%
+    const APP_ID = "69fc81cf4f6a0ae5ab617e2b";
+    // Same-origin, always: this page is served by the same backend it talks
+    // to, so every URL it builds is relative. An explicit empty string keeps
+    // the SDK relative too (its https://base44.app default only applies when
+    // the key is absent). No address is baked in — a custom domain needs no
+    // change here.
+    const BACKEND_URL = "";
+    // %%CONFIG_END%%
+
+    const client = createClient({
+      appId: APP_ID,
+      serverUrl: BACKEND_URL,
+      appBaseUrl: BACKEND_URL,
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("from_url") || "/";
+    const resetToken = params.get("token");
+
+    // Native mobile shell (Capacitor). Google blocks OAuth inside embedded
+    // webviews, so on mobile the OAuth flow runs in the system browser and
+    // the backend redirects back into the app via its URL scheme
+    // (MOBILE_SCHEME://oauth?access_token=…). The App plugin delivers that
+    // URL here through the appUrlOpen event while this page stays loaded
+    // underneath the browser sheet.
+    const MOBILE_SCHEME = "eb44-69fc81cf4f6a0ae5ab617e2b";
+    const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    // A native plugin, from a page with no JavaScript bundle: the bridge
+    // puts every plugin the app carries under Capacitor.Plugins before any
+    // page script runs (measured on Capacitor 8).
+    function nativePlugin(name) {
+      const C = window.Capacitor;
+      return (C && C.Plugins && C.Plugins[name]) || null;
+    }
+    // Sign in with Apple exists inside the iPhone app only (Apple's review
+    // asks for it next to Google / Microsoft sign-in). The app itself says
+    // whether this build carries it: its plugin is there, or it is not. On
+    // the web, in the Android app and in an iPhone build made before the
+    // kit carried it, it is not.
+    const appleSignIn = nativePlugin("EB44AppleSignIn");
+    const appPlugin = isNativeApp ? nativePlugin("App") : null;
+    if (appPlugin) {
+      appPlugin.addListener("appUrlOpen", (event) => {
+        try {
+          const token = new URL(event.url).searchParams.get("access_token");
+          if (token) {
+            const browser = nativePlugin("Browser");
+            if (browser) browser.close().catch(() => {});
+            redirectWithToken(token);
+          }
+        } catch {}
+      });
+    }
+
+    let appInfo = null;
+    let mode = resetToken ? "reset-password" : "login";
+
+    // SVG icons (inline to avoid dependencies)
+    const ICONS = {
+      mail: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+      lock: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+      back: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+      check: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+      google: '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>',
+      microsoft: '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>',
+      apple: '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z"/></svg>',
+      facebook: '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+    };
+
+    function iconHtml(name) {
+      return `<span class="input-icon">${ICONS[name]}</span>`;
+    }
+
+    async function loadAppInfo() {
+      try {
+        const resp = await fetch(
+          `${BACKEND_URL}/api/apps/public/login-info/by-id/${APP_ID}`
+        );
+        if (resp.ok) appInfo = await resp.json();
+      } catch {}
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      render();
+    }
+
+    function redirectWithToken(token) {
+      const separator = fromUrl.includes("?") ? "&" : "?";
+      window.location.href = `${fromUrl}${separator}access_token=${encodeURIComponent(token)}`;
+    }
+
+    function getAuthConfig() {
+      if (!appInfo || !appInfo.auth_config) return {};
+      return appInfo.auth_config;
+    }
+
+    function buildOAuthUrl(provider) {
+      // On mobile the return address is the app's URL scheme — the system
+      // browser can't navigate back into a capacitor:// page directly.
+      const redirectUrl = isNativeApp
+        ? `${MOBILE_SCHEME}://oauth`
+        : new URL(fromUrl, window.location.origin).toString();
+      const queryParams = `app_id=${APP_ID}&from_url=${encodeURIComponent(redirectUrl)}`;
+      const providerPath = provider === "google" ? "" : `/${provider}`;
+      // Absolute, always: the in-app browser sheet refuses a relative
+      // address ("Unable to display URL" — measured in the wrapped app),
+      // and BACKEND_URL is empty since the app serves its own API.
+      return new URL(`${BACKEND_URL}/api/apps/auth${providerPath}/login?${queryParams}`, window.location.origin).toString();
+    }
+
+    // Sign in with Apple inside the iPhone app: Apple vouches for the
+    // person to the app directly (the kit's EB44AppleSignIn plugin), and the
+    // backend checks Apple's token against a nonce it minted a moment ago.
+    async function signInWithApple(btn) {
+      clearAlert();
+      setLoading(btn, "Signing in...");
+      try {
+        const nonceResp = await fetch(`${BACKEND_URL}/api/apps/${APP_ID}/auth/apple/nonce`);
+        if (!nonceResp.ok) throw new Error("nonce");
+        const { nonce } = await nonceResp.json();
+        const result = await appleSignIn.signIn({ nonce });
+        const resp = await fetch(`${BACKEND_URL}/api/apps/${APP_ID}/auth/apple/native`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            identity_token: result.identityToken,
+            nonce,
+            given_name: result.givenName || null,
+            family_name: result.familyName || null,
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (data.redirect) { window.location.href = data.redirect; return; }
+        if (!resp.ok || !data.access_token) throw new Error(data.message || data.detail || "apple");
+        redirectWithToken(data.access_token);
+      } catch (err) {
+        if (!(err && (err.code === "cancelled" || err.message === "cancelled"))) {
+          showError("Apple sign-in didn't go through. Try again, or use another way to sign in.");
+        }
+      } finally {
+        setDone(btn, "Sign in with Apple");
+      }
+    }
+
+    function render() {
+      const el = document.getElementById("app");
+      if (mode === "reset-password") {
+        el.innerHTML = renderResetPassword();
+      } else {
+        el.innerHTML = renderCard();
+      }
+      attachHandlers();
+    }
+
+    function renderCard() {
+      const auth = getAuthConfig();
+      const name = appInfo?.name || "";
+      const logo = appInfo?.logo_url || "";
+      const showPassword = auth.enable_username_password !== false;
+
+      const oauthProviders = [];
+      if (appleSignIn && (auth.enable_google_login || auth.enable_microsoft_login)) oauthProviders.push({ id: "apple", name: "Apple" });
+      if (auth.enable_google_login) oauthProviders.push({ id: "google", name: "Google" });
+      if (auth.enable_microsoft_login) oauthProviders.push({ id: "microsoft", name: "Microsoft" });
+      if (auth.enable_facebook_login) oauthProviders.push({ id: "facebook", name: "Facebook" });
+
+      const oauthButtons = oauthProviders.map(p =>
+        `<button type="button" class="btn-oauth${p.id === "apple" ? " btn-oauth-apple" : ""}" data-provider="${p.id}">
+          ${ICONS[p.id] || ""}
+          <span>${p.id === "apple" ? "Sign in with Apple" : `Continue with ${p.name}`}</span>
+        </button>`
+      ).join("");
+
+      const hasBoth = oauthProviders.length > 0 && showPassword;
+      const divider = hasBoth ? `<div class="divider"><span>or</span></div>` : "";
+
+      let innerContent = "";
+
+      if (mode === "login") {
+        innerContent = `
+          ${oauthButtons}
+          ${divider}
+          ${showPassword ? renderSignInForm() : ""}
+        `;
+      } else if (mode === "register") {
+        innerContent = renderRegisterForm();
+      } else if (mode === "otp") {
+        innerContent = renderOtpForm();
+      } else if (mode === "forgot") {
+        innerContent = renderForgotForm();
+      } else if (mode === "forgot-sent") {
+        innerContent = renderForgotSent();
+      }
+
+      return `
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-content">
+              ${logo && mode === "login" ? `
+                <div class="logo-wrap">
+                  <div class="logo-glow"></div>
+                  <img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="logo" />
+                </div>
+              ` : ""}
+              ${mode === "login" ? `
+                <div class="header">
+                  <h1>Welcome to ${escapeHtml(name)}</h1>
+                  <p>Sign in to continue</p>
+                </div>
+              ` : ""}
+              <div class="form-content">
+                <div id="alert"></div>
+                ${innerContent}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSignInForm() {
+      return `
+        <form id="signin-form">
+          <div class="fields">
+            <div class="field">
+              <label for="email">Email</label>
+              <div class="input-wrap">
+                ${iconHtml("mail")}
+                <input type="email" id="email" placeholder="you@example.com" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <div class="input-wrap">
+                ${iconHtml("lock")}
+                <input type="password" id="password" placeholder="••••••••" required />
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="signin-btn">Sign in</button>
+          <div class="links">
+            <button type="button" class="btn-link" id="to-forgot">Forgot password?</button>
+            <button type="button" class="btn-link" id="to-register">Need an account? <strong>Sign up</strong></button>
+          </div>
+        </form>
+      `;
+    }
+
+    function renderRegisterForm() {
+      return `
+        <button type="button" class="btn-back" id="to-login">${ICONS.back} Back to sign in</button>
+        <div class="sub-header">
+          <h2>Create your account</h2>
+        </div>
+        <form id="register-form">
+          <div class="fields">
+            <div class="field">
+              <label for="reg-email">Email</label>
+              <div class="input-wrap">
+                ${iconHtml("mail")}
+                <input type="email" id="reg-email" placeholder="you@example.com" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="reg-password">Password</label>
+              <div class="input-wrap">
+                ${iconHtml("lock")}
+                <input type="password" id="reg-password" placeholder="Min. 8 characters" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="reg-confirm">Confirm Password</label>
+              <div class="input-wrap">
+                ${iconHtml("lock")}
+                <input type="password" id="reg-confirm" placeholder="••••••••" required />
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="register-btn">Create account</button>
+        </form>
+      `;
+    }
+
+    function renderOtpForm() {
+      return `
+        <button type="button" class="btn-back" id="to-login">${ICONS.back} Back to sign in</button>
+        <div class="icon-circle">${ICONS.mail}</div>
+        <div class="sub-header" style="text-align:center;">
+          <h2>Verify your email</h2>
+          <p>We've sent a 6-digit code to<br/><span class="email-highlight" id="otp-email"></span></p>
+        </div>
+        <form id="otp-form">
+          <div class="otp-container" id="otp-inputs">
+            <input type="text" maxlength="1" class="otp-input" inputmode="numeric" autocomplete="one-time-code" />
+            <input type="text" maxlength="1" class="otp-input" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-input" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-input" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-input" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-input" inputmode="numeric" />
+          </div>
+          <p style="font-size:12px;color:#64748b;text-align:center;margin-top:12px;">Enter the verification code sent to your email</p>
+          <button type="submit" class="btn-primary" id="otp-btn">Verify email</button>
+          <div style="text-align:center;">
+            <button type="button" class="btn-link" id="resend-otp">Resend code</button>
+          </div>
+        </form>
+      `;
+    }
+
+    function renderForgotForm() {
+      return `
+        <button type="button" class="btn-back" id="to-login">${ICONS.back} Back to sign in</button>
+        <div class="sub-header" style="text-align:center;">
+          <h2>Reset your password</h2>
+          <p>Enter your email and we'll send you a link to reset your password</p>
+        </div>
+        <form id="forgot-form">
+          <div class="field">
+            <label for="forgot-email">Email</label>
+            <div class="input-wrap">
+              ${iconHtml("mail")}
+              <input type="email" id="forgot-email" placeholder="you@example.com" required />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="forgot-btn">Send reset link</button>
+        </form>
+      `;
+    }
+
+    function renderForgotSent() {
+      return `
+        <div class="icon-circle">${ICONS.mail}</div>
+        <div class="sub-header" style="text-align:center;">
+          <h2>Check your email</h2>
+          <p>We've sent password reset instructions to<br/><span class="email-highlight" id="sent-email"></span></p>
+        </div>
+        <div class="alert alert-success">
+          Please check your email for the password reset link. It may take a few minutes to arrive.
+        </div>
+        <button type="button" class="btn-back" id="to-login" style="justify-content:center;width:100%;">${ICONS.back} Back to sign in</button>
+      `;
+    }
+
+    function renderResetPassword() {
+      return `
+        <div class="card">
+          <div class="card-bar"></div>
+          <div class="card-body">
+            <div class="card-content">
+              <div class="form-content">
+                <div id="alert"></div>
+                <div class="sub-header" style="text-align:center;">
+                  <h2>Set new password</h2>
+                  <p>Enter your new password</p>
+                </div>
+                <form id="reset-form">
+                  <div class="fields">
+                    <div class="field">
+                      <label for="new-password">New Password</label>
+                      <div class="input-wrap">
+                        ${iconHtml("lock")}
+                        <input type="password" id="new-password" placeholder="Min. 8 characters" required />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="confirm-new-password">Confirm Password</label>
+                      <div class="input-wrap">
+                        ${iconHtml("lock")}
+                        <input type="password" id="confirm-new-password" placeholder="••••••••" required />
+                      </div>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn-primary" id="reset-btn">Reset password</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // State for remembering email across mode switches
+    let currentEmail = "";
+
+    function attachHandlers() {
+      // OAuth
+      document.querySelectorAll("[data-provider]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (btn.dataset.provider === "apple") {
+            signInWithApple(btn);
+            return;
+          }
+          const url = buildOAuthUrl(btn.dataset.provider);
+          const browser = isNativeApp ? nativePlugin("Browser") : null;
+          if (browser) {
+            // In-app browser sheet (Google rejects embedded-webview
+            // sign-in; a full jump to the Safari app feels broken). The
+            // appUrlOpen listener above closes the sheet on return.
+            browser.open({ url });
+          } else if (isNativeApp) {
+            window.open(url, "_blank");
+          } else {
+            window.location.href = url;
+          }
+        });
+      });
+
+      // Sign in
+      const signinForm = document.getElementById("signin-form");
+      if (signinForm) {
+        signinForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+          const btn = document.getElementById("signin-btn");
+          clearAlert();
+          setLoading(btn, "Signing in...");
+          try {
+            const result = await client.auth.loginViaEmailPassword(email, password);
+            if (result?.access_token) {
+              redirectWithToken(result.access_token);
+            }
+          } catch (err) {
+            showError(err?.data?.detail || err?.data?.message || err?.message || "Invalid email or password");
+          } finally {
+            setDone(btn, "Sign in");
+          }
+        });
+      }
+
+      // Register
+      const registerForm = document.getElementById("register-form");
+      if (registerForm) {
+        registerForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("reg-email").value;
+          const password = document.getElementById("reg-password").value;
+          const confirm = document.getElementById("reg-confirm").value;
+          const btn = document.getElementById("register-btn");
+          clearAlert();
+          if (password !== confirm) { showError("Passwords do not match"); return; }
+          if (password.length < 8) { showError("Password must be at least 8 characters long"); return; }
+          setLoading(btn, "Creating account...");
+          try {
+            const result = await client.auth.register({ email, password });
+            if (result?.access_token) {
+              redirectWithToken(result.access_token);
+            } else {
+              currentEmail = email;
+              mode = "otp";
+              render();
+            }
+          } catch (err) {
+            showError(err?.data?.detail || err?.data?.message || err?.message || "Registration failed. Please try again.");
+          } finally {
+            setDone(btn, "Create account");
+          }
+        });
+      }
+
+      // OTP
+      const otpForm = document.getElementById("otp-form");
+      if (otpForm) {
+        const emailEl = document.getElementById("otp-email");
+        if (emailEl) emailEl.textContent = currentEmail;
+
+        const inputs = document.querySelectorAll(".otp-input");
+        inputs.forEach((inp, i) => {
+          inp.addEventListener("input", () => {
+            if (inp.value && i < inputs.length - 1) inputs[i + 1].focus();
+          });
+          inp.addEventListener("keydown", (e) => {
+            if (e.key === "Backspace" && !inp.value && i > 0) inputs[i - 1].focus();
+          });
+          inp.addEventListener("paste", (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData("text").trim();
+            for (let j = 0; j < Math.min(text.length, inputs.length); j++) {
+              inputs[j].value = text[j];
+            }
+            inputs[Math.min(text.length, inputs.length) - 1]?.focus();
+          });
+        });
+        if (inputs[0]) inputs[0].focus();
+
+        otpForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const code = Array.from(inputs).map(i => i.value).join("");
+          const btn = document.getElementById("otp-btn");
+          clearAlert();
+          if (code.length !== 6) { showError("Please enter all 6 digits"); return; }
+          setLoading(btn, "Verifying...");
+          try {
+            const result = await client.auth.verifyOtp({ email: currentEmail, otpCode: code });
+            if (result?.access_token) {
+              redirectWithToken(result.access_token);
+            } else {
+              showSuccess("Email verified successfully! Redirecting to login...");
+              setTimeout(() => { mode = "login"; render(); }, 2000);
+            }
+          } catch (err) {
+            showError(err?.data?.detail || err?.data?.message || err?.message || "Invalid verification code");
+          } finally {
+            setDone(btn, "Verify email");
+          }
+        });
+
+        const resendBtn = document.getElementById("resend-otp");
+        if (resendBtn) {
+          resendBtn.addEventListener("click", async () => {
+            clearAlert();
+            try {
+              await client.auth.resendOtp(currentEmail);
+              showSuccess("New verification code sent to your email");
+            } catch {
+              showError("Failed to resend code");
+            }
+          });
+        }
+      }
+
+      // Forgot password
+      const forgotForm = document.getElementById("forgot-form");
+      if (forgotForm) {
+        forgotForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("forgot-email").value;
+          const btn = document.getElementById("forgot-btn");
+          clearAlert();
+          setLoading(btn, "Sending...");
+          try {
+            await client.auth.resetPasswordRequest(email);
+            currentEmail = email;
+            mode = "forgot-sent";
+            render();
+          } catch (err) {
+            showError(err?.data?.detail || err?.data?.message || err?.message || "Failed to send reset email");
+          } finally {
+            setDone(btn, "Send reset link");
+          }
+        });
+      }
+
+      // Forgot sent
+      const sentEmail = document.getElementById("sent-email");
+      if (sentEmail) sentEmail.textContent = currentEmail;
+
+      // Reset password
+      const resetForm = document.getElementById("reset-form");
+      if (resetForm) {
+        resetForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const newPassword = document.getElementById("new-password").value;
+          const confirm = document.getElementById("confirm-new-password").value;
+          const btn = document.getElementById("reset-btn");
+          clearAlert();
+          if (newPassword !== confirm) { showError("Passwords do not match"); return; }
+          if (newPassword.length < 8) { showError("Password must be at least 8 characters long"); return; }
+          setLoading(btn, "Resetting...");
+          try {
+            await client.auth.resetPassword({ resetToken, newPassword });
+            showSuccess("Password reset successfully. Redirecting to login...");
+            setTimeout(() => {
+              window.location.href = `${window.location.pathname}?from_url=${encodeURIComponent(fromUrl)}`;
+            }, 3000);
+          } catch (err) {
+            showError(err?.data?.detail || err?.data?.message || err?.message || "Failed to reset password. The link may have expired.");
+          } finally {
+            setDone(btn, "Reset password");
+          }
+        });
+      }
+
+      // Navigation
+      document.getElementById("to-register")?.addEventListener("click", () => { clearAlert(); mode = "register"; render(); });
+      document.getElementById("to-forgot")?.addEventListener("click", () => { clearAlert(); mode = "forgot"; render(); });
+      document.querySelectorAll("#to-login").forEach(btn => {
+        btn.addEventListener("click", () => { clearAlert(); mode = "login"; render(); });
+      });
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("alert");
+      if (el) el.innerHTML = `<div class="alert alert-error">${escapeHtml(msg)}</div>`;
+    }
+    function showSuccess(msg) {
+      const el = document.getElementById("alert");
+      if (el) el.innerHTML = `<div class="alert alert-success">${escapeHtml(msg)}</div>`;
+    }
+    function clearAlert() {
+      const el = document.getElementById("alert");
+      if (el) el.innerHTML = "";
+    }
+    function setLoading(btn, text) {
+      if (!btn) return;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span>${escapeHtml(text)}`;
+    }
+    function setDone(btn, text) {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.textContent = text;
+    }
+    function escapeHtml(str) {
+      const d = document.createElement("div");
+      d.textContent = str;
+      return d.innerHTML;
+    }
+    function escapeAttr(str) {
+      return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    loadAppInfo();
+  </script>
+</body>
+</html>

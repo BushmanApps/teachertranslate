@@ -1,0 +1,43 @@
+{
+  "name": "RefundBlacklist",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "Email address that is permanently ineligible for a refund (previously held a Pro subscription and deleted their account)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description or note (up to 1000 characters)"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for blacklisting, e.g. account deleted after Pro subscription"
+    }
+  },
+  "required": [
+    "email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,389 @@
+@import url('https://fonts.googleapis.com/css2?family=Albert+Sans:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 96%;
+    --foreground: 240 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 15% 15%;
+    --primary: 210 32% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 82% 95%;
+    --secondary-foreground: 340 82% 40%;
+    --muted: 250 30% 95%;
+    --muted-foreground: 240 10% 50%;
+    --accent: 48 96% 60%;
+    --accent-foreground: 40 80% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 250 30% 88%;
+    --input: 250 30% 88%;
+    --ring: 262 83% 58%;
+    --radius: 1.25rem;
+    --brutal-bg: 20 5% 10%;
+    --brutal-primary: 15 100% 55%;
+    --brutal-accent: 48 96% 60%;
+    --font-fredoka: 'Albert Sans', sans-serif;
+    --font-nunito: 'Manrope', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-nunito);
+    overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Re-enable text selection for form inputs */
+  input, textarea, select, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Re-enable text selection for translation output boxes */
+  .translation-output {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Hide browser scrollbars on WebKit devices for a clean native look */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.brutal-mode {
+  --background: 20 5% 10%;
+  --foreground: 0 0% 95%;
+  --card: 20 5% 14%;
+  --card-foreground: 0 0% 95%;
+  --primary: 15 100% 55%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 20 5% 18%;
+  --muted-foreground: 0 0% 65%;
+  --border: 20 5% 22%;
+  --input: 20 5% 22%;
+}
+
+/* Dark mode for honest mode */
+.dark-honest {
+  --background: 220 20% 6%;
+  --foreground: 220 15% 92%;
+  --card: 220 20% 10%;
+  --card-foreground: 220 15% 92%;
+  --popover: 220 20% 10%;
+  --popover-foreground: 220 15% 92%;
+  --primary: 210 50% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 340 30% 20%;
+  --secondary-foreground: 340 60% 80%;
+  --muted: 220 20% 14%;
+  --muted-foreground: 220 10% 62%;
+  --accent: 48 80% 50%;
+  --accent-foreground: 40 80% 10%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 20% 18%;
+  --input: 220 20% 18%;
+}
+
+/* Hardcoded light backgrounds → very dark */
+.dark-honest .bg-white { background-color: hsl(220 20% 10%) !important; }
+.dark-honest .bg-white\/70,
+.dark-honest .bg-white\/60 { background-color: hsl(220 20% 14%) !important; }
+.dark-honest .bg-\[\#a8d8c8\]\/80 { background-color: hsl(220 20% 12%) !important; }
+.dark-honest .bg-\[\#d4ede5\] { background-color: hsl(220 20% 14%) !important; }
+.dark-honest .hover\:bg-\[\#c4e0d8\]:hover { background-color: hsl(220 20% 18%) !important; }
+.dark-honest .bg-\[\#fde8cb\]\/90,
+.dark-honest .bg-\[\#fde8cb\]\/80,
+.dark-honest .bg-\[\#fde8cb\] { background-color: hsl(220 20% 12%) !important; }
+.dark-honest .bg-\[\#ffe785\] { background-color: hsl(220 20% 14%) !important; }
+.dark-honest .bg-purple-50,
+.dark-honest .bg-amber-50,
+.dark-honest .bg-blue-50,
+.dark-honest .bg-green-50 { background-color: hsl(220 20% 12%) !important; }
+.dark-honest .bg-red-100,
+.dark-honest .bg-orange-100 { background-color: hsl(220 20% 14%) !important; }
+
+/* Gradient override */
+.dark-honest .bg-gradient-to-br.from-purple-50 {
+  background-image: none !important;
+  background-color: hsl(280 20% 10%) !important;
+}
+
+/* ModeToggle container */
+.dark-honest .mode-toggle {
+  background: hsl(220 20% 14%) !important;
+  box-shadow: 3px 3px 0 hsl(220 20% 10%) !important;
+}
+
+/* Hardcoded dark text → light for readability */
+.dark-honest .text-purple-700 { color: hsl(280 50% 75%) !important; }
+.dark-honest .text-amber-800 { color: hsl(35 50% 75%) !important; }
+.dark-honest .text-blue-800 { color: hsl(220 50% 75%) !important; }
+.dark-honest .text-green-900 { color: hsl(140 30% 75%) !important; }
+.dark-honest .text-green-700 { color: hsl(140 40% 65%) !important; }
+.dark-honest .text-red-700 { color: hsl(0 50% 70%) !important; }
+.dark-honest .text-orange-700 { color: hsl(25 50% 70%) !important; }
+.dark-honest .text-\[\#4c4c9a\] { color: hsl(240 30% 80%) !important; }
+.dark-honest .text-\[\#5d5d92\] { color: hsl(240 15% 70%) !important; }
+.dark-honest .text-gray-500 { color: hsl(220 10% 60%) !important; }
+.dark-honest .hover\:text-gray-800:hover { color: hsl(220 15% 80%) !important; }
+
+/* Hardcoded light borders → dark */
+.dark-honest .border-white\/20 { border-color: hsl(220 20% 22%) !important; }
+.dark-honest .border-purple-100,
+.dark-honest .border-amber-100,
+.dark-honest .border-blue-100,
+.dark-honest .border-green-100 { border-color: hsl(220 20% 22%) !important; }
+.dark-honest .border-emerald-200 { border-color: hsl(160 30% 25%) !important; }
+
+/* Hilarious mode — fun pink + sunny yellow palette, distinct from Honest */
+.hilarious-mode {
+  --background: 330 60% 95%;
+  --foreground: 320 45% 22%;
+  --card: 340 70% 97%;
+  --card-foreground: 320 45% 22%;
+  --popover: 340 70% 97%;
+  --popover-foreground: 320 45% 22%;
+  --primary: 325 85% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 45 95% 90%;
+  --secondary-foreground: 30 80% 30%;
+  --muted: 330 40% 93%;
+  --muted-foreground: 320 25% 42%;
+  --accent: 45 95% 58%;
+  --accent-foreground: 30 80% 22%;
+  --border: 325 40% 87%;
+  --input: 325 40% 87%;
+  --ring: 325 85% 55%;
+}
+
+.hilarious-mode .bg-\[\#a8d8c8\]\/80 { background-color: hsl(325 70% 88%) !important; }
+.hilarious-mode .bg-\[\#d4ede5\] { background-color: hsl(325 60% 90%) !important; }
+.hilarious-mode .hover\:bg-\[\#c4e0d8\]:hover { background-color: hsl(325 60% 90%) !important; }
+.hilarious-mode .bg-\[\#fde8cb\]\/90,
+.hilarious-mode .bg-\[\#fde8cb\]\/80,
+.hilarious-mode .bg-\[\#fde8cb\] { background-color: hsl(45 90% 85%) !important; }
+.hilarious-mode .bg-\[\#ffe785\] { background-color: hsl(45 95% 80%) !important; }
+.hilarious-mode .text-\[\#4c4c9a\] { color: hsl(325 60% 35%) !important; }
+.hilarious-mode .text-\[\#5d5d92\] { color: hsl(320 30% 40%) !important; }
+.hilarious-mode .border-white\/20 { border-color: hsl(325 40% 85%) !important; }
+.hilarious-mode .bg-white\/70 { background-color: hsl(340 60% 96%) !important; }
+
+/* Dark Hilarious mode — keeps the pink + yellow highlights on a dark base */
+.dark-hilarious {
+  --background: 330 30% 8%;
+  --foreground: 330 30% 90%;
+  --card: 330 25% 12%;
+  --card-foreground: 330 30% 90%;
+  --popover: 330 25% 12%;
+  --popover-foreground: 330 30% 90%;
+  --primary: 325 85% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 45 80% 20%;
+  --secondary-foreground: 45 80% 80%;
+  --muted: 330 25% 16%;
+  --muted-foreground: 330 20% 65%;
+  --accent: 45 90% 55%;
+  --accent-foreground: 30 80% 15%;
+  --border: 325 30% 22%;
+  --input: 325 30% 22%;
+  --ring: 325 85% 62%;
+}
+
+.dark-hilarious .bg-white { background-color: hsl(330 25% 12%) !important; }
+.dark-hilarious .bg-white\/70,
+.dark-hilarious .bg-white\/60 { background-color: hsl(330 25% 16%) !important; }
+.dark-hilarious .bg-\[\#a8d8c8\]\/80 { background-color: hsl(330 25% 14%) !important; }
+.dark-hilarious .bg-\[\#d4ede5\] { background-color: hsl(330 25% 16%) !important; }
+.dark-hilarious .hover\:bg-\[\#c4e0d8\]:hover { background-color: hsl(330 25% 20%) !important; }
+.dark-hilarious .bg-\[\#fde8cb\]\/90,
+.dark-hilarious .bg-\[\#fde8cb\]\/80,
+.dark-hilarious .bg-\[\#fde8cb\] { background-color: hsl(45 30% 14%) !important; }
+.dark-hilarious .bg-\[\#ffe785\] { background-color: hsl(45 80% 28%) !important; }
+.dark-hilarious .bg-purple-50,
+.dark-hilarious .bg-amber-50,
+.dark-hilarious .bg-blue-50,
+.dark-hilarious .bg-green-50 { background-color: hsl(330 25% 14%) !important; }
+.dark-hilarious .bg-red-100,
+.dark-hilarious .bg-orange-100 { background-color: hsl(330 25% 16%) !important; }
+
+.dark-hilarious .bg-gradient-to-br.from-purple-50 {
+  background-image: none !important;
+  background-color: hsl(330 25% 12%) !important;
+}
+
+.dark-hilarious .mode-toggle {
+  background: hsl(330 25% 16%) !important;
+  box-shadow: 3px 3px 0 hsl(330 25% 10%) !important;
+}
+
+.dark-hilarious .text-purple-700 { color: hsl(325 50% 72%) !important; }
+.dark-hilarious .text-amber-800 { color: hsl(40 60% 72%) !important; }
+.dark-hilarious .text-blue-800 { color: hsl(220 50% 72%) !important; }
+.dark-hilarious .text-green-900 { color: hsl(140 30% 72%) !important; }
+.dark-hilarious .text-green-700 { color: hsl(140 40% 65%) !important; }
+.dark-hilarious .text-red-700 { color: hsl(0 50% 70%) !important; }
+.dark-hilarious .text-orange-700 { color: hsl(25 50% 70%) !important; }
+.dark-hilarious .text-\[\#4c4c9a\] { color: hsl(325 50% 75%) !important; }
+.dark-hilarious .text-\[\#5d5d92\] { color: hsl(320 25% 68%) !important; }
+.dark-hilarious .text-gray-500 { color: hsl(330 15% 58%) !important; }
+.dark-hilarious .hover\:text-gray-800:hover { color: hsl(330 25% 80%) !important; }
+
+.dark-hilarious .border-white\/20 { border-color: hsl(325 30% 25%) !important; }
+.dark-hilarious .border-purple-100,
+.dark-hilarious .border-amber-100,
+.dark-hilarious .border-blue-100,
+.dark-hilarious .border-green-100 { border-color: hsl(325 30% 25%) !important; }
+.dark-hilarious .border-emerald-200 { border-color: hsl(160 30% 25%) !important; }
+
+/* ── Portrait-only lock (blocks landscape on phones) ─────────── */
+
+.landscape-block {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.landscape-block-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.landscape-block-inner svg {
+  color: hsl(var(--primary));
+  animation: rotate-hint 2.5s ease-in-out infinite;
+}
+
+.landscape-block-title {
+  font-family: var(--font-fredoka);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.landscape-block-sub {
+  font-size: 15px;
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+
+/* Landscape orientation is now supported — portrait lock disabled */
+
+/* ── iOS safe area + viewport lock ────────────────────────────── */
+
+/* Safe-area top padding utility for navigation headers */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Safe-area bottom padding — resolves to 0 on Android, web and any device
+   without a home-gesture inset, so no extra space is ever added there. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Same inset as a margin, for the floating compact nav pill */
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Let the document scroll natively so the browser address bar
+   hides on scroll-up and reappears on scroll-down (mobile) */
+html, body {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Subtle watercolour drift for Honest mode background — only the image moves, never the content */
+@keyframes honest-watercolour-drift {
+  0%   { background-position: 50% 50%; }
+  25%  { background-position: 58% 50%; }
+  50%  { background-position: 50% 58%; }
+  75%  { background-position: 42% 50%; }
+  100% { background-position: 50% 50%; }
+}
+
+.honest-bg-anim {
+  animation: honest-watercolour-drift 21s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+/* Emoji background animations (CSS, so they never depend on JS) */
+@keyframes emoji-float {
+  0%, 100% { transform: translateY(0) rotate(var(--r)); }
+  50% { transform: translateY(-18px) rotate(calc(var(--r) + 12deg)); }
+}
+
+@keyframes emoji-jiggle {
+  0%, 100% { transform: translate(0, 0) rotate(var(--r)); }
+  25% { transform: translate(-2px, 1px) rotate(calc(var(--r) + 5deg)); }
+  50% { transform: translate(2px, -1px) rotate(calc(var(--r) - 5deg)); }
+  75% { transform: translate(-1px, 1px) rotate(calc(var(--r) + 3deg)); }
+}
+
+/* Use svh for page roots so content matches the visible viewport
+   instead of the larger 100vh (which includes browser chrome) */
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* ── Dark mode additions for public pages ───────────────────────── */
+
+/* Gray text used on Landing footer / public pages → readable light tone */
+.dark-honest .text-gray-700,
+.dark-honest .text-gray-800,
+.dark-honest .text-gray-900 { color: hsl(220 10% 75%) !important; }
+
+/* Dark scrim over the Landing background image so the dark hero cards
+   read beautifully instead of fighting a bright watercolour */
+.dark-honest .landing-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: hsl(220 20% 6% / 0.8);
+  z-index: 0;
+  pointer-events: none;
+}
+.dark-honest .landing-root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Re-enable text selection on specific elements (e.g. glossary cards),
+   overriding the app-wide user-select: none. Unlayered so it always wins. */
+.selectable-text {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

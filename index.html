@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-C62FSEJTGH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-C62FSEJTGH');
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="https://toeynygydmamcxnxakhb.storage.supabase.co/storage/v1/object/public/eb44-assets/images/public/69fc81cf4f6a0ae5ab617e2b/c7bffff4e_TTLogo01.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#7c3aed" />
+    <title>Teacher Translate</title>
+    <meta name="description" content="Decode teacher-speak on your child's school report. Find out what your child's teacher really means — in plain English." />
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-WN8438BR');</script>
+<!-- End Google Tag Manager -->
+    <script>
+      // EscapeBase44 mobile shell v5: links back into the app, the splash,
+      // window.eb44.iap (in-app purchases), window.eb44.push (push
+      // notifications) and window.eb44.ads (ads). See MOBILE.md.
+      (function () {
+        var APP_ID = "69fc81cf4f6a0ae5ab617e2b";
+        var API_IAP = "/api/apps/" + APP_ID + "/eb44/iap";
+        var API_PUSH = "/api/apps/" + APP_ID + "/eb44/push";
+        function noop() {}
+        function native() { var C = window.Capacitor; return !!(C && C.isNativePlatform && C.isNativePlatform()); }
+        // The bridge puts every plugin the app carries under
+        // Capacitor.Plugins before any page script runs (measured on
+        // Capacitor 8).
+        function plugin(name) { var C = window.Capacitor; return (C && C.Plugins && C.Plugins[name]) || null; }
+        function platform() { return window.Capacitor.getPlatform(); }
+        function token() { try { return window.localStorage.getItem("base44_access_token"); } catch (e) { return null; } }
+        function api(base, path, opts) {
+          opts = opts || {};
+          var headers = { "Content-Type": "application/json" };
+          var t = token();
+          if (t) headers.Authorization = "Bearer " + t;
+          return fetch(base + path, { method: opts.method || "GET", headers: headers, body: opts.body ? JSON.stringify(opts.body) : undefined })
+            .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || "request failed"); return j; }); });
+        }
+        function needApp() { return Promise.reject(new Error("Purchases only work inside the mobile app")); }
+
+        // ── Purchases ──
+        function txPayload(tx, type) {
+          return { product_id: tx.productIdentifier || "", product_type: type, jws: tx.jwsRepresentation, purchase_token: tx.purchaseToken, transaction_id: tx.transactionId };
+        }
+        // The signed-in person's store account token: passed to the store
+        // with a purchase, so the store's own notifications name the buyer.
+        function accountToken() {
+          if (!token()) return Promise.resolve(null);
+          return api(API_IAP, "/config").then(function (c) { return (c && c.account_token) || null; }, function () { return null; });
+        }
+        // iOS: finish with the store what the backend has. A backend from
+        // before `settled` answered for every transaction it did not reject.
+        function finish(sent, res) {
+          var p = plugin("NativePurchases");
+          if (!p || platform() !== "ios") return;
+          var ids = res.settled || sent.filter(function (t) {
+            return !(res.rejected || []).some(function (r) { return r.product_id === t.product_id; });
+          }).map(function (t) { return t.transaction_id; });
+          ids.forEach(function (id) { if (id) p.finishTransaction({ transactionId: String(id) }).catch(noop); });
+        }
+        function verify(transactions, throwOnReject) {
+          return api(API_IAP, "/verify", { method: "POST", body: { platform: platform(), transactions: transactions } })
+            .then(function (res) {
+              finish(transactions, res);
+              if (throwOnReject && res.rejected && res.rejected.length) {
+                var err = new Error(res.rejected[0].reason);
+                err.rejected = res.rejected;
+                throw err;
+              }
+              return res;
+            });
+        }
+        // Everything the store still holds for this person: current
+        // unlocks and subscriptions, and (iOS) any purchase not finished yet —
+        // a credit pack whose delivery a dropped connection interrupted.
+        function pending() {
+          var p = plugin("NativePurchases");
+          var types = platform() === "android" ? ["inapp", "subs"] : ["inapp"];
+          var lists = types.map(function (t) {
+            return p.getPurchases({ productType: t, onlyCurrentEntitlements: true })
+              .then(function (r) { return r.purchases.map(function (tx) { return txPayload(tx, t); }); }, function () { return []; });
+          });
+          if (platform() === "ios" && p.getUnfinishedTransactions) {
+            lists.push(p.getUnfinishedTransactions().then(function (r) {
+              return (r.transactions || r.purchases || []).map(function (tx) { return txPayload(tx, "inapp"); });
+            }, function () { return []; }));
+          }
+          return Promise.all(lists).then(function (all) {
+            var seen = {};
+            return [].concat.apply([], all).filter(function (t) {
+              var key = t.transaction_id || t.purchase_token || t.jws;
+              if (!(t.jws || t.purchase_token) || seen[key]) return false;
+              seen[key] = true;
+              return true;
+            });
+          });
+        }
+
+        // ── Ads ──
+        function adsPlugin() { return native() ? plugin("AdMob") : null; }
+        function adsMode() {
+          var S = plugin("EB44Shell");
+          if (!native() || !S || !S.info) return Promise.resolve("none");
+          return S.info().then(function (i) { return (i && i.ads) || "none"; }, function () { return "none"; });
+        }
+        function withAds(fn) {
+          return adsMode().then(function (mode) {
+            var A = adsPlugin();
+            if (mode !== "admob" || !A) throw new Error("Ads aren't set up in this app (MOBILE.md: ads)");
+            return fn(A);
+          });
+        }
+
+        window.eb44 = {
+          appId: APP_ID,
+          isMobileApp: native,
+          iap: {
+            available: function () {
+              var p = plugin("NativePurchases");
+              if (!native() || !p) return Promise.resolve(false);
+              return p.isBillingSupported().then(function (r) { return !!r.isBillingSupported; }, function () { return false; });
+            },
+            getProducts: function (ids, opts) {
+              var p = plugin("NativePurchases");
+              if (!p) return needApp();
+              var type = (opts && opts.type) === "subs" ? "subs" : "inapp";
+              return p.getProducts({ productIdentifiers: ids, productType: type }).then(function (r) { return r.products; });
+            },
+            // purchase("premium_monthly", { type: "subs", plan: "monthly" })
+            // type: "inapp" (a one-time unlock) | "subs" | "consumable" (a
+            // credit pack, declared in IAP_CREDIT_PACKS). plan = the Google
+            // Play base-plan id, required for Android subscriptions. Resolves
+            // the person's entitlements — for a credit pack, what was added
+            // ({ product_id, field, amount }), or null if it already was.
+            purchase: function (productId, opts) {
+              opts = opts || {};
+              var p = plugin("NativePurchases");
+              if (!p) return needApp();
+              var type = opts.type || "inapp";
+              return accountToken().then(function (account) {
+                return p.purchaseProduct({
+                  productIdentifier: productId,
+                  productType: type === "subs" ? "subs" : "inapp",
+                  planIdentifier: opts.plan,
+                  quantity: 1,
+                  isConsumable: type === "consumable",
+                  appAccountToken: account || undefined,
+                  autoAcknowledgePurchases: false,
+                });
+              }).then(function (tx) {
+                return verify([txPayload(tx, type)], true).then(function (res) {
+                  if (type !== "consumable") return res.entitlements;
+                  var mine = (res.delivered || []).filter(function (d) { return d.transaction_id === String(tx.transactionId); });
+                  return mine[0] || (res.delivered || [])[0] || null;
+                });
+              });
+            },
+            restore: function () {
+              var p = plugin("NativePurchases");
+              if (!p) return needApp();
+              return pending().then(function (txs) {
+                if (!txs.length) return window.eb44.iap.entitlements();
+                return verify(txs, false).then(function (res) { return res.entitlements; });
+              });
+            },
+            entitlements: function () { return api(API_IAP, "/entitlements").then(function (r) { return r.entitlements; }); },
+            hasEntitlement: function (productId) {
+              return window.eb44.iap.entitlements().then(function (list) {
+                return list.some(function (e) { return e.product_id === productId; });
+              });
+            },
+            // The store the person buys from. webCheckoutLink: on the App
+            // Store in the United States an app may show a link to buy on its
+            // website beside the in-app purchase (Apple 3.1.1(a)); everywhere
+            // else it must not (on Google Play: only after joining Google's
+            // external content links program, US users only).
+            storefront: function () {
+              var p = plugin("NativePurchases");
+              if (!native() || !p || !p.getStorefront) return Promise.resolve({ country: "", webCheckoutLink: false });
+              return p.getStorefront().then(function (r) {
+                var country = (r && r.countryCode) || "";
+                return { country: country, webCheckoutLink: platform() === "ios" && country === "USA" };
+              }, function () { return { country: "", webCheckoutLink: false }; });
+            },
+          },
+          push: {
+            // Registers this device for the app's push notifications when the
+            // owner has push set up for this platform; resolves false and does
+            // nothing (no prompt) otherwise. Runs on every native launch with a
+            // signed-in user (device tokens rotate); call it after a login that
+            // did not reload the page.
+            sync: function () {
+              var P = plugin("PushNotifications");
+              if (!native() || !P || !token()) return Promise.resolve(false);
+              var here = platform();
+              return api(API_PUSH, "/config").then(function (cfg) {
+                if (!cfg || !cfg[here]) return false;
+                return P.checkPermissions().then(function (s) {
+                  return (s.receive === "prompt" || s.receive === "prompt-with-rationale") ? P.requestPermissions() : s;
+                }).then(function (s) {
+                  if (s.receive !== "granted") return false;
+                  return P.register().then(function () { return true; });
+                });
+              }).catch(function () { return false; });
+            },
+          },
+          ads: {
+            // "admob" (an AdMob app on this platform: every call below works),
+            // "webview" (only the ads inside the app's own pages), "none".
+            mode: adsMode,
+            // Call once, before the first ad: Google's consent question where
+            // the law wants one, then (iPhone, unless tracking: false) Apple's
+            // tracking question, then the SDK itself. Resolves the consent
+            // status.
+            start: function (opts) {
+              opts = opts || {};
+              return withAds(function (A) {
+                var consent;
+                return A.requestConsentInfo({}).then(function (info) {
+                  consent = info;
+                  return info.isConsentFormAvailable && info.status === "REQUIRED" ? A.showConsentForm() : info;
+                }).then(function (info) {
+                  consent = info || consent;
+                  if (platform() !== "ios" || opts.tracking === false) return null;
+                  return A.trackingAuthorizationStatus().then(function (t) {
+                    return t.status === "notDetermined" ? A.requestTrackingAuthorization() : null;
+                  });
+                }).then(function () {
+                  return A.initialize({ initializeForTesting: !!opts.test, testingDevices: opts.testDevices || [], tagForChildDirectedTreatment: opts.childDirected });
+                }).then(function () { return consent && consent.status; });
+              });
+            },
+            // The privacy options Google's consent rules want reachable from
+            // the app's settings.
+            privacyOptions: function () { return withAds(function (A) { return A.showPrivacyOptionsForm(); }); },
+            // banner(adUnitId, { position: "TOP_CENTER" | "BOTTOM_CENTER", margin, test })
+            banner: function (adId, opts) {
+              opts = opts || {};
+              return withAds(function (A) { return A.showBanner({ adId: adId, position: opts.position || "BOTTOM_CENTER", margin: opts.margin || 0, isTesting: !!opts.test }); });
+            },
+            hideBanner: function () { return withAds(function (A) { return A.hideBanner(); }); },
+            removeBanner: function () { return withAds(function (A) { return A.removeBanner(); }); },
+            // A full-screen ad between two screens.
+            interstitial: function (adId, opts) {
+              return withAds(function (A) {
+                return A.prepareInterstitial({ adId: adId, isTesting: !!(opts && opts.test) }).then(function () { return A.showInterstitial(); });
+              });
+            },
+            // An ad the person chooses to watch for a reward; resolves the
+            // reward ({ type, amount }) once they have earned it.
+            rewarded: function (adId, opts) {
+              return withAds(function (A) {
+                return A.prepareRewardVideoAd({ adId: adId, isTesting: !!(opts && opts.test) }).then(function () { return A.showRewardVideoAd(); });
+              });
+            },
+          },
+        };
+
+        // ── The splash: down once the page has painted ──
+        function hideSplash() {
+          var S = plugin("SplashScreen");
+          if (S) S.hide().catch(noop);
+        }
+        function whenPainted(fn) {
+          var done = false;
+          function ready() { var root = document.getElementById("root"); return !root || root.childElementCount > 0; }
+          function go() { if (done) return; done = true; requestAnimationFrame(function () { requestAnimationFrame(fn); }); }
+          function watch() {
+            if (ready()) { go(); return; }
+            var o = new MutationObserver(function () { if (ready()) { o.disconnect(); go(); } });
+            o.observe(document.documentElement, { childList: true, subtree: true });
+          }
+          if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watch); else watch();
+        }
+
+        // ── A link into the app ──
+        function openHere(url) {
+          try {
+            var u = new URL(url);
+            var t = u.searchParams.get("access_token");
+            if (u.protocol !== "https:" && u.protocol !== "http:") {
+              if (t) {
+                var Browser = plugin("Browser");
+                if (Browser) Browser.close().catch(noop);
+                window.location.href = "/?access_token=" + encodeURIComponent(t);
+              }
+              return;
+            }
+            // One of the app's own addresses (its own, a custom domain): the
+            // same page, here, where the person is signed in.
+            var path = u.pathname + u.search + u.hash;
+            if (path !== window.location.pathname + window.location.search + window.location.hash) window.location.href = path;
+          } catch (e) {}
+        }
+
+        function arm() {
+          var App = native() ? plugin("App") : null;
+          if (!App) return false;
+          whenPainted(hideSplash);
+          App.addListener("appUrlOpen", function (ev) { openHere(ev.url); });
+          // A link that started the app (Android hands it over only this
+          // way): opened once per launch, not again after a page reload.
+          if (App.getLaunchUrl) {
+            App.getLaunchUrl().then(function (r) {
+              if (!r || !r.url) return;
+              var seen = null;
+              try { seen = window.sessionStorage.getItem("eb44-launch-url"); window.sessionStorage.setItem("eb44-launch-url", r.url); } catch (e) {}
+              if (seen !== r.url) openHere(r.url);
+            }).catch(noop);
+          }
+          var P = plugin("PushNotifications");
+          if (P) {
+            P.addListener("registration", function (t) {
+              api(API_PUSH, "/devices", { method: "POST", body: { platform: platform(), token: t.value } }).catch(noop);
+            });
+            P.addListener("pushNotificationActionPerformed", function (ev) {
+              var data = ev && ev.notification && ev.notification.data;
+              var target = "/";
+              try { var u = new URL((data && data.action_url) || "/", window.location.origin); target = u.pathname + u.search + u.hash; } catch (e) {}
+              window.location.href = target;
+            });
+          }
+          var NP = plugin("NativePurchases");
+          if (NP) {
+            // A purchase that completes outside a purchase() call — approved
+            // by a parent, renewed while the app is open, bought on another
+            // device, paid later in cash on Android.
+            NP.addListener("transactionUpdated", function (tx) {
+              if (token()) verify([txPayload(tx, tx.productType === "subs" ? "subs" : "inapp")], false).catch(noop);
+            });
+            // Silent sync at launch: what the store holds lands server-side
+            // (getPurchases never prompts).
+            if (token()) setTimeout(function () { window.eb44.iap.restore().catch(noop); }, 3000);
+          }
+          // Device registration once a signed-in user is present — at launch,
+          // or the moment a login inside the app stores its token.
+          var synced = false;
+          function syncOnce() { if (!synced && token()) { synced = true; window.eb44.push.sync(); } }
+          setTimeout(syncOnce, 1500);
+          setInterval(syncOnce, 5000);
+          return true;
+        }
+        if (!arm()) window.addEventListener("load", arm);
+      })();
+    </script>
+  </head>
+  <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WN8438BR"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

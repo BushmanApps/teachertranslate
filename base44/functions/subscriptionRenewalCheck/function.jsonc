@@ -1,0 +1,27 @@
+{
+  "name": "subscriptionRenewalCheck",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "id": "6a367826d3b54b819143828c",
+      "type": "scheduled",
+      "name": "Daily Subscription Renewal Check",
+      "description": null,
+      "is_active": false,
+      "function_args": null,
+      "schedule_mode": "recurring",
+      "schedule_type": "simple",
+      "cron_expression": null,
+      "repeat_unit": "days",
+      "repeat_interval": 1,
+      "one_time_date": null,
+      "repeat_on_days": null,
+      "repeat_on_day_of_month": null,
+      "start_time": "22:00",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null,
+      "trigger_conditions": null
+    }
+  ]
+}

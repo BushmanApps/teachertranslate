@@ -1,0 +1,52 @@
+{
+  "name": "ShareAlert",
+  "type": "object",
+  "properties": {
+    "sender_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email of the user who triggered the alert"
+    },
+    "sender_user_id": {
+      "type": "string",
+      "description": "Base44 user ID of the sender"
+    },
+    "report_count": {
+      "type": "number",
+      "description": "Number of custom-recipient sends in the 4-month window when the alert was triggered"
+    },
+    "recipient_summary": {
+      "type": "string",
+      "description": "Summary of recipients and dates included in the alert report"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description or note (up to 1000 characters)"
+    }
+  },
+  "required": [
+    "sender_email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

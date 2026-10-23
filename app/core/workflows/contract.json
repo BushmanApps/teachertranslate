@@ -1,0 +1,174 @@
+{
+  "_readme": [
+    "The measured Base44 Workflows subset \u2014 the single source of truth shared by the fork's",
+    "compiler (app/core/workflows/compiler.py), the migrator's analysis gate, and the drift",
+    "probe that diffs this file against Base44's live validate-definition endpoint.",
+    "Every value here was MEASURED against Base44 production (2026-08-20..22); the evidence",
+    "lives in research/divergence-chasing/2026-08-19-workflows/ (HANDOFF.md sections cited",
+    "per field). Do not extend this file from docs or intuition \u2014 only from a probe."
+  ],
+  "dsl_major": "1",
+  "namespace": "base44",
+  "task_types": [
+    "call",
+    "switch",
+    "wait"
+  ],
+  "activities": {
+    "invoke_backend_function": {
+      "required_args": [
+        "function_name"
+      ],
+      "optional_args": [
+        "args"
+      ]
+    },
+    "compute_seconds_until": {
+      "required_args": [],
+      "optional_args": [
+        "target_iso"
+      ]
+    },
+    "send_email": {
+      "required_args": [
+        "to",
+        "subject",
+        "template_name"
+      ],
+      "optional_args": [
+        "variables"
+      ]
+    }
+  },
+  "blocked_activities": [
+    "publish_social_post",
+    "invoke_superagent_step"
+  ],
+  "_registry_note": [
+    "known_activity_registry = Base44's GLOBAL activity enumeration, leaked by a bogus-activity",
+    "validate-definition error ('Available: [...]'). The decorative top-level available_activities",
+    "field gates NOTHING (measured 2026-08-31: send_email ran while absent from it), so the drift",
+    "probe diffs THIS list against the error-message enumeration. Drift-probe expectation only \u2014",
+    "membership here says nothing about what the fork implements (that is `activities`) or what",
+    "analysis refuses (everything outside `activities`).",
+    "foreign_trigger_types = trigger tags Base44 declares in its union that can NEVER reach a",
+    "migratable app (measured 2026-08-31, chase 2026-08-31-new-workflow-triggers): webhook is",
+    "gated off platform-wide (WEBHOOK_NOT_AVAILABLE, no client UI \u2014 the weekly probe watches for",
+    "its launch); goal_file is refused for app_type user_app (a Superagents/user_agent trigger).",
+    "Drift-probe expectation only \u2014 analysis still refuses both (they are not trigger_types keys)."
+  ],
+  "known_activity_registry": [
+    "compute_seconds_until",
+    "invoke_backend_function",
+    "publish_social_post",
+    "send_email"
+  ],
+  "foreign_trigger_types": {
+    "webhook": "gated: WEBHOOK_NOT_AVAILABLE ('aren't available yet'), measured 2026-08-31",
+    "goal_file": "UNSUPPORTED_TRIGGER_FOR_APP_TYPE for user_app (Superagents-only), measured 2026-08-31"
+  },
+  "jq_denylist": [
+    "env",
+    "$ENV",
+    "input",
+    "inputs"
+  ],
+  "runtime_step_limit": 10000,
+  "cascade_depth_limit": 5,
+  "auto_deactivate": {
+    "scheduled": 5,
+    "other": 50
+  },
+  "trigger_types": {
+    "scheduled": {
+      "events": [],
+      "allow_empty_events": true
+    },
+    "entity": {
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "allow_empty_events": true
+    },
+    "connector": {
+      "_note": "The analysis allowlist AND the engine's adapter inventory (core/workflows/connectors.py \u2014 the gate asserts they agree). Every entry is a measured Base44 payload: gmail from the parity lab (H \u00a714.11b + 2026-09-02: label-only changes fire with has_new_messages false), googledrive changes + googlecalendar events from a customer's own 200 runs (2026-09-02), googledrive file/file.update/file.trash/file.untrash/file.delete from the lab's six file workflows through update/content/trash/untrash/permanent-delete (2026-09-02: event_type is derived from Google's state; file.delete is subscribable but NEVER fires \u2014 a permanent delete arrives as state `remove`, which only the catch-all `file` sees, as `file`). Base44's full catalog (developer docs, 45 integration/event pairs: outlook, one_drive, share_point, microsoft_teams, slack \u00d710, slackbot \u00d75, wix \u00d711) is measured per integration with a LIVE connection before it lands here \u2014 never from the docs. PUSH integrations (core/workflows/push.py) since 2026-09-27: the provider POSTs to the app's own /api/connector-events/{integration} and the fork forwards the raw body, which is what Base44 does \u2014 measured on customers' own run ledgers: slackbot = Slack's Events API envelope verbatim, event_type = event.type plus the measured channel_type suffix for a message (24 runs, 2026-09-17); outlook = Microsoft Graph's change-notification envelope verbatim, event_type from changeType (6 runs, 2026-09-27). message.im/message.mpim and updated/deleted follow the SAME derivation on the same verbatim envelope; app_mention is the event's literal type. NOT served: slack (the user-token sibling), share_point, microsoft_teams, wix \u2014 no customer has one and no payload is measured, so analysis blocks them by name and emails us.",
+      "events_by_integration": {
+        "gmail": [
+          "mailbox"
+        ],
+        "googledrive": [
+          "changes",
+          "file",
+          "file.update",
+          "file.trash",
+          "file.untrash",
+          "file.delete"
+        ],
+        "googlecalendar": [
+          "events"
+        ],
+        "slackbot": [
+          "app_mention",
+          "message.im",
+          "message.mpim",
+          "message.channels",
+          "message.groups"
+        ],
+        "outlook": [
+          "created",
+          "updated",
+          "deleted"
+        ],
+        "one_drive": [
+          "updated"
+        ]
+      }
+    },
+    "in_app_agent": {
+      "events": [
+        "conversation_started"
+      ],
+      "allow_empty_events": false
+    },
+    "app_user_auth": {
+      "events": [
+        "login",
+        "signup"
+      ],
+      "allow_empty_events": false
+    },
+    "app_publish": {
+      "events": [
+        "published"
+      ],
+      "allow_empty_events": false
+    },
+    "app_payment": {
+      "events": [
+        "payment_succeeded",
+        "payment_refunded"
+      ],
+      "allow_empty_events": false
+    }
+  },
+  "schedule": {
+    "modes": [
+      "recurring",
+      "one_time",
+      "interval"
+    ],
+    "ends_types": [
+      "never",
+      "on_date",
+      "after_count"
+    ],
+    "interval_units": [
+      "minutes",
+      "hours",
+      "days"
+    ],
+    "min_gap_minutes": 5
+  }
+}

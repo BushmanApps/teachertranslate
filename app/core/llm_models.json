@@ -1,0 +1,137 @@
+{
+  "swept": "2026-10-14",
+  "aliases": {
+    "gpt_5": {
+      "echo": "gpt-5.4",
+      "route": "openai/gpt-5.4"
+    },
+    "glm_5_2": {
+      "echo": "glm-5.2",
+      "route": "z-ai/glm-5.2"
+    },
+    "gpt_5_4": {
+      "echo": "gpt-5.4",
+      "route": "openai/gpt-5.4"
+    },
+    "gpt_5_5": {
+      "echo": "gpt-6.1-sol",
+      "route": "openai/gpt-6.1-sol"
+    },
+    "gpt_6_sol": {
+      "echo": "gpt-6.1-sol",
+      "route": "openai/gpt-6.1-sol"
+    },
+    "gpt_5_mini": {
+      "echo": "gpt-6-luna",
+      "route": "openai/gpt-6-luna"
+    },
+    "gpt_6_luna": {
+      "echo": "gpt-6-luna",
+      "route": "openai/gpt-6-luna"
+    },
+    "gpt_5_6_sol": {
+      "echo": "gpt-6.1-sol",
+      "route": "openai/gpt-6.1-sol"
+    },
+    "gpt_6_astra": {
+      "echo": "gpt-6-astra",
+      "route": "openai/gpt-6-astra"
+    },
+    "gemini_3_pro": {
+      "echo": "gemini-3.1-pro-preview",
+      "route": "google/gemini-3.1-pro-preview"
+    },
+    "gpt_5_6_luna": {
+      "echo": "gpt-6-luna",
+      "route": "openai/gpt-6-luna"
+    },
+    "claude_opus_5": {
+      "echo": "claude-opus-5",
+      "route": "anthropic/claude-opus-5"
+    },
+    "gpt_5_6_terra": {
+      "echo": "gpt-5.6-terra",
+      "route": "openai/gpt-5.6-terra"
+    },
+    "gemini_3_1_pro": {
+      "echo": "gemini-3.1-pro-preview",
+      "route": "google/gemini-3.1-pro-preview"
+    },
+    "gemini_3_flash": {
+      "echo": "gemini-3.8-flash",
+      "route": "google/gemini-3.8-flash"
+    },
+    "claude-sonnet-5": {
+      "echo": "claude-sonnet-5",
+      "route": "anthropic/claude-sonnet-5"
+    },
+    "claude_opus_4_6": {
+      "echo": "claude-opus-4-6",
+      "route": "anthropic/claude-opus-4.6"
+    },
+    "claude_opus_4_7": {
+      "echo": "claude-opus-4-7",
+      "route": "anthropic/claude-opus-4.7"
+    },
+    "claude_opus_4_8": {
+      "echo": "claude-opus-4-8",
+      "route": "anthropic/claude-opus-4.8"
+    },
+    "claude_opus_5_5": {
+      "echo": "claude-opus-5-5",
+      "route": "anthropic/claude-opus-5.5"
+    },
+    "claude_fable_5_1": {
+      "echo": "claude-fable-5-1",
+      "route": "anthropic/claude-fable-5.1"
+    },
+    "gemini_3_8_flash": {
+      "echo": "gemini-3.8-flash",
+      "route": "google/gemini-3.8-flash"
+    },
+    "claude_sonnet_4_6": {
+      "echo": "claude-sonnet-4-6",
+      "route": "anthropic/claude-sonnet-4.6"
+    }
+  },
+  "created": 1783209600,
+  "observed": "2026-10-14",
+  "reported": [
+    {
+      "id": "automatic",
+      "owned_by": "base44"
+    },
+    {
+      "id": "gemini_3_8_flash",
+      "owned_by": "google"
+    },
+    {
+      "id": "gpt_6_luna",
+      "owned_by": "openai"
+    },
+    {
+      "id": "claude-sonnet-5",
+      "owned_by": "anthropic"
+    },
+    {
+      "id": "claude_opus_5_5",
+      "owned_by": "anthropic"
+    },
+    {
+      "id": "gpt_6_sol",
+      "owned_by": "openai"
+    },
+    {
+      "id": "gpt_6_astra",
+      "owned_by": "openai"
+    },
+    {
+      "id": "claude_fable_5_1",
+      "owned_by": "anthropic"
+    },
+    {
+      "id": "glm_5_2",
+      "owned_by": "zai"
+    }
+  ]
+}

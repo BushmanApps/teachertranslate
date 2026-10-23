@@ -1,0 +1,29 @@
+{
+  "name": "sendProWelcomeEmail",
+  "entry": "entry.ts",
+  "automations": [
+    {
+      "id": "6a96cab9d376edebd3d6cf42",
+      "type": "entity",
+      "name": "Pro Welcome Email on Subscription",
+      "description": "Sends a branded Pro welcome email (plus admin copy) when a UserProfile's is_subscribed is set to true — covers Stripe purchases, checkSubscription syncs, and manual backend enables.",
+      "is_active": false,
+      "function_args": null,
+      "entity_name": "UserProfile",
+      "event_types": [
+        "create",
+        "update"
+      ],
+      "trigger_conditions": {
+        "logic": "and",
+        "conditions": [
+          {
+            "field": "data.is_subscribed",
+            "operator": "equals",
+            "value": true
+          }
+        ]
+      }
+    }
+  ]
+}

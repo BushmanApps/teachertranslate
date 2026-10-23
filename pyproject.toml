@@ -1,0 +1,46 @@
+[project]
+name = "escapebase44-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+# Base = deps imported at process startup regardless of which features the
+# migrated app uses. Heavy, feature-gated deps live in
+# [project.optional-dependencies] below; their backend imports are LAZY so a
+# deploy that didn't install an extra still boots — the dep is only touched
+# when its feature actually runs. The migrator selects extras per-app from the
+# SDK-call analysis; see src/migration/prepare-source/python-extras.ts. This is
+# what keeps a Vercel deploy under the 250 MB unzipped function limit.
+#
+# (Selecting deps from real usage is independent of module pruning: even with
+# every module folder shipped, the lazy import means an unused feature's dep is
+# never imported at boot, so it's safe to omit.)
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.12,<2.13",
+    "pydantic-settings>=2.0",
+    "motor>=3.0",
+    "python-socketio>=5.0",
+    "pyjwt>=2.0",
+    "httpx>=0.27",
+    "python-multipart>=0.0.26",
+    "bcrypt>=5.0.0",
+    "authlib>=1.7.0",
+    "email-validator>=2.3.0",
+    "openpyxl>=3.1.5",
+    "resend>=2.29.0",
+    "orjson>=3.11.8",
+    "tenacity>=9.1.4",
+    "cryptography>=42",
+    "h2>=4.1",
+    "tzdata>=2025.2",
+    "jq>=1.8.0",
+    "croniter>=2.0",
+    "openai>=2.3.0",
+    "aioboto3>=15.5.0",
+]
+
+[project.optional-dependencies]
+# Local runs only (README: uv sync --all-extras) — the dev script runs its
+# own uvicorn; the deployed platform imports the ASGI app directly and
+# never installs extras.
+server = ["uvicorn[standard]>=0.34"]
+
