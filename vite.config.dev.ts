@@ -100,6 +100,17 @@ const POSTHOG_INJECT_SCRIPT = `(function () {
   });
 })();`;
 
+const standalonePageRoutesPlugin: Plugin = {
+  name: "escapebase44-standalone-page-routes",
+  configureServer(server) {
+    server.middlewares.use((request, _response, next) => {
+      if (request.url === "/login") request.url = "/login/index.html";
+      if (request.url === "/reset-password") request.url = "/reset-password/index.html";
+      next();
+    });
+  },
+};
+
 const posthogInjectPlugin: Plugin = {
   name: "escapebase44-posthog-inject",
   transformIndexHtml: {
@@ -119,7 +130,7 @@ export default defineConfig(({ mode }) => {
   const BACKEND = env.EB44_BACKEND_PROXY ?? "http://localhost:8000";
 
   return mergeConfig(baseConfig, defineConfig({
-  plugins: [previewAuthInjectPlugin, posthogInjectPlugin],
+  plugins: [standalonePageRoutesPlugin, previewAuthInjectPlugin, posthogInjectPlugin],
   server: {
     host: "0.0.0.0",
     port: PREVIEW_PORT,
