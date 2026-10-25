@@ -104,8 +104,17 @@ const standalonePageRoutesPlugin: Plugin = {
   name: "escapebase44-standalone-page-routes",
   configureServer(server) {
     server.middlewares.use((request, _response, next) => {
-      if (request.url === "/login") request.url = "/login/index.html";
-      if (request.url === "/reset-password") request.url = "/reset-password/index.html";
+      const requestUrl = new URL(request.url ?? "/", "http://localhost");
+      const standalonePage =
+        requestUrl.pathname === "/login"
+          ? "/login/index.html"
+          : requestUrl.pathname === "/reset-password"
+            ? "/reset-password/index.html"
+            : null;
+
+      if (standalonePage) {
+        request.url = `${standalonePage}${requestUrl.search}`;
+      }
       next();
     });
   },
