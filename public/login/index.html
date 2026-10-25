@@ -301,7 +301,8 @@
     // the SDK relative too (its https://base44.app default only applies when
     // the key is absent). No address is baked in — a custom domain needs no
     // change here.
-    const BACKEND_URL = "";
+    const isPreviewHost = window.location.hostname === "localhost" || window.location.hostname.endsWith(".webcontainer-api.io");
+    const BACKEND_URL = isPreviewHost ? "https://teachertranslate.eb44.app" : "";
     // %%CONFIG_END%%
 
     const client = createClient({

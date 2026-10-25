@@ -25,8 +25,16 @@ export const AuthProvider = ({ children }) => {
       
       // First, check app public settings (with token if available)
       // This will tell us if auth is required, user not registered, etc.
+      const isPreviewHost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' ||
+          window.location.hostname.endsWith('.webcontainer-api.io'));
+      const apiBase = isPreviewHost
+        ? `${import.meta.env.VITE_BASE44_BACKEND_URL || 'https://teachertranslate.eb44.app'}/api/apps/public`
+        : '/api/apps/public';
+
       const appClient = createAxiosClient({
-        baseURL: `/api/apps/public`,
+        baseURL: apiBase,
         headers: {
           'X-App-Id': appParams.appId
         },
