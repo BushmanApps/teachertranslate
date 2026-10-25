@@ -12,7 +12,11 @@ import { defineConfig, mergeConfig, type Plugin } from "vite";
 import baseConfig from "./vite.config";
 
 const PREVIEW_PORT = parseInt(process.env.PREVIEW_PORT ?? "5173", 10);
-const BACKEND = "http://localhost:8000";
+// When a local backend isn't available (e.g. the Bolt preview sandbox, which
+// has no uv/deno/MongoDB), EB44_BACKEND_PROXY points the /api proxy at the
+// live backend instead so login and data still work. Defaults to the local
+// backend for normal laptop dev.
+const BACKEND = process.env.EB44_BACKEND_PROXY ?? "http://localhost:8000";
 
 // Reads a preview JWT from a URL fragment (`#preview-token=…`), scrubs the
 // fragment from the URL bar (so it doesn't leak via bookmarks / history),
@@ -143,9 +147,11 @@ export default mergeConfig(baseConfig, defineConfig({
       "/ws": { target: BACKEND.replace(/^http/, "ws"), ws: true, xfwd: true },
       "/health": { target: BACKEND, changeOrigin: true, xfwd: true },
       "/functions": { target: BACKEND, changeOrigin: true, xfwd: true },
-      // The WebSockets of the app's realtime rooms (Base44 Actors) go to the
-      // actors host the dev script starts (`.escapebase44/actors-host/`).
-      "/parties": { target: "ws://localhost:8004", ws: true },
+      // The WebSockets of the app's realtime rooms (Base44 Actors). In local
+      // dev these go to the actors host the dev script starts (localhost:8004).
+      // In the preview sandbox that host isn't running, so fall back to the
+      // live backend when EB44_BACKEND_PROXY is set.
+      "/parties": { target: (process.env.EB44_BACKEND_PROXY ?? "ws://localhost:8004").replace(/^http/, "ws"), ws: true },
     },
   },
 }));
