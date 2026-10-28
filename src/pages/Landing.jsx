@@ -102,7 +102,7 @@ export default function Landing() {
             </div>
           </div>
             <p className="text-muted-foreground text-xs sm:text-base mt-1 sm:mt-2 leading-relaxed">
-              Let <em className="font-semibold text-foreground">Teacher Translate</em><font color="#fde8cb">.</font> decipher your child's school report comments -- giving access to a more informed (and funnier) understanding of their learning.
+              Let <em className="font-semibold text-foreground">Teacher Translate</em><font color="#fde8cb">.</font> decipher your child's school report comments - giving access to a more informed (and funnier) understanding of their learning.
             </p>
           <button
             onClick={() => isAuthenticated ? navigate("/", { replace: true }) : navigate("/register")}
