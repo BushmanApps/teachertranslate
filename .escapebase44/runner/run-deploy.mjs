@@ -125,13 +125,16 @@ var fromTheTop = createFromTheTop();
 
 // src/providers/vercel/deploy.ts
 var VERCEL_API = "https://api.vercel.com";
-async function deploy(appUrl, config, ctx) {
+async function deploy(config, ctx) {
   const { projectId, orgId } = config.app;
   const token = process.env.VERCEL_TOKEN;
   console.log(`[vercel] starting deploy (project=${projectId})`);
   mkdirSync(".vercel", { recursive: true });
   writeFileSync(".vercel/project.json", JSON.stringify({ projectId, orgId }));
-  const backendEnv = buildBackendEnv(ctx.runtimeEnv, { FRONTEND_DIR: "dist", backgroundTasks: false });
+  const backendEnv = {
+    ...buildBackendEnv(ctx.runtimeEnv, { FRONTEND_DIR: "dist", backgroundTasks: false }),
+    VITE_BASE44_APP_ID: ctx.runtimeEnv.APP_ID
+  };
   const envVars = Object.entries(backendEnv).map(([key, value]) => ({
     key,
     value,
@@ -183,16 +186,7 @@ async function deploy(appUrl, config, ctx) {
   console.log("[vercel] vercel build");
   execSync(`vercel build --prod --token=${token}`, { stdio: "inherit" });
   console.log("[vercel] vercel deploy");
-  const deployOutput = execSync(`vercel deploy --prebuilt --prod --token=${token}`, { encoding: "utf8" });
-  process.stdout.write(deployOutput);
-  const deploymentUrls = deployOutput.match(/https:\/\/[^\s]+/g) ?? [];
-  const deploymentUrl = deploymentUrls.at(-1);
-  const alias = new URL(appUrl).hostname;
-  if (!deploymentUrl) {
-    throw new Error("Vercel deploy completed without returning a deployment URL");
-  }
-  console.log(`[vercel] assigning ${alias} to ${deploymentUrl}`);
-  execSync(`vercel alias set ${deploymentUrl} ${alias} --token=${token}`, { stdio: "inherit" });
+  execSync(`vercel deploy --prebuilt --prod --token=${token}`, { stdio: "inherit" });
   console.log("[vercel] deploy complete");
 }
 async function explainUnhealthy(config) {
@@ -1474,7 +1468,7 @@ async function main() {
       functionsNotLoading: /* @__PURE__ */ new Map()
     };
     console.log("[run-deploy] === deploying app ===");
-    await deploy(appUrl, define_PROVIDER_CONFIG_default, ctx);
+    await deploy(define_PROVIDER_CONFIG_default, ctx);
     console.log("[run-deploy] app deployed");
     console.log("[run-deploy] === deploying edge functions ===");
     const deployed = await deploy2(appUrl, define_PROVIDER_CONFIG_default, automations, ctx);

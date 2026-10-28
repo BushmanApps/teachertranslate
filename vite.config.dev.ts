@@ -136,7 +136,7 @@ const posthogInjectPlugin: Plugin = {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const BACKEND = env.EB44_BACKEND_PROXY ?? "http://localhost:8000";
+  const BACKEND = env.EB44_BACKEND_PROXY ?? "https://www.teachertranslate.com.au";
 
   return mergeConfig(baseConfig, defineConfig({
   plugins: [standalonePageRoutesPlugin, previewAuthInjectPlugin, posthogInjectPlugin],
