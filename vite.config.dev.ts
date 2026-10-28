@@ -28,6 +28,7 @@ const PREVIEW_AUTH_INJECT_SCRIPT = `(function () {
   var match = window.location.hash.match(/(?:^|[#&])preview-token=([^&]+)/);
   if (!match) return;
   var token = decodeURIComponent(match[1]);
+  try { window.localStorage.setItem('base44_access_token', token); } catch (e) {}
   // Strip the fragment so it doesn't leak into bookmarks or history.
   history.replaceState(null, '', window.location.pathname + window.location.search);
 
