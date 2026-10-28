@@ -69,21 +69,21 @@ export default function Landing() {
               <span className="text-xl sm:text-2xl">🤣</span>
               <div>
                 <p className="font-bold text-[13px] sm:text-sm">Hilarious Mode</p>
-                <p className="text-xs text-muted-foreground">Funny, savage but never mean</p>
+                <p className="text-xs text-muted-foreground">Funny, savage - but never mean</p>
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 items-start">
               <span className="text-xl sm:text-2xl">💥</span>
               <div>
                 <p className="font-bold text-[13px] sm:text-sm">Brutal Mode</p>
-                <p className="text-xs text-muted-foreground">No filter – the raw, unfiltered truth</p>
+                <p className="text-xs text-muted-foreground">No filter – the raw inner monologue</p>
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 items-start">
               <span className="text-xl sm:text-2xl">📊</span>
               <div>
                 <p className="font-bold text-[13px] sm:text-sm">Year Level Assessment (Pro)</p>
-                <p className="text-xs text-muted-foreground">Know if your child is ahead, on track, or struggling</p>
+                <p className="text-xs text-muted-foreground">Confirm if your child is ahead, on track, or struggling</p>
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 items-start">
