@@ -3,7 +3,7 @@
   "appName": "Teacher Translate",
   "webDir": "dist",
   "server": {
-    "url": "https://teachertranslate.eb44.app"
+    "url": "https://www.teachertranslate.com.au"
   },
   "appendUserAgent": "EB44MobileApp",
   "ios": {

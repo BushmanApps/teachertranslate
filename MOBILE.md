@@ -1,4 +1,4 @@
-# Ship teachertranslate as a mobile app
+# Ship www as a mobile app
 
 This repo is mobile-ready. Your app is a standard web app (Vite + React)
 with a backend you own, wrapped into a real iOS/Android app with
@@ -209,7 +209,7 @@ and every build reads them.
   that one already shipped) and a build number above everything uploaded
   before; for Android `1.0` unless you pass one. The workflow's `version`
   input overrides both.
-- **Sign-in return scheme** — `eb44-69fc81cf4f6a0ae5ab617e2b` (used by https://teachertranslate.eb44.app/login inside
+- **Sign-in return scheme** — `eb44-69fc81cf4f6a0ae5ab617e2b` (used by https://www.teachertranslate.com.au/login inside
   the app). Derived from your app id; nothing to change.
 
 Secrets (the Apple key, the Play keystore, the push keys) live where every
@@ -288,7 +288,7 @@ app: buy on the phone, have it everywhere.
   a Pub/Sub topic (Google Play's publisher,
   `google-play-developer-notifications@system.gserviceaccount.com`, may
   publish to it) and a subscription that sends each message to
-  `https://teachertranslate.eb44.app/api/apps/<your app id>/eb44/iap/google/notifications`, and name
+  `https://www.teachertranslate.com.au/api/apps/<your app id>/eb44/iap/google/notifications`, and name
   the topic in Play Console → Monetization setup.
 
 1. **Create the products** — App Store Connect → Monetization → In-App
