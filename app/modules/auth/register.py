@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, Request
+from pymongo.errors import DuplicateKeyError
 from pydantic import EmailStr, TypeAdapter, ValidationError
 
 from app.config import Settings
@@ -138,13 +139,23 @@ async def _create_user_branch(
         # "Invalid email or password" (password mismatch). The original
         # password is authoritative for the unverified account; the
         # second register just resends OTP).
+        private_doc = build_private_user_doc(
+            email, app_id, user_id, hash_password(password),
+        )
+        private_doc.pop("otp_code")
+        private_doc.pop("otp_expires_at")
+        private_doc.pop("otp_attempts")
         await db.coll("_private_users").update_one(
             {"email": email, "app_id": app_id},
-            {"$set": {
-                "otp_code": otp,
-                "otp_expires_at": otp_exp,
-                "otp_attempts": 0,
-            }},
+            {
+                "$setOnInsert": private_doc,
+                "$set": {
+                    "otp_code": otp,
+                    "otp_expires_at": otp_exp,
+                    "otp_attempts": 0,
+                },
+            },
+            upsert=True,
         )
 
         await _send_otp_email(email_provider, email, otp, app_name)
@@ -163,12 +174,23 @@ async def _create_user_branch(
 
     user_doc = build_new_user_doc(email, full_name, app_id)
     user_id = user_doc["_id"]
-    await db.coll("User").insert_one(user_doc)
+    try:
+        await db.coll("User").insert_one(user_doc)
+    except DuplicateKeyError:
+        # A concurrent registration won the unique email slot. Re-read it so
+        # the retry branch below repairs or refreshes its private auth record.
+        return await _create_user_branch(
+            email, password, settings, email_provider, request, app_settings,
+        )
 
     private_doc = build_private_user_doc(email, app_id, str(user_id), hash_password(password))
     private_doc["otp_code"] = otp
     private_doc["otp_expires_at"] = otp_exp
-    await db.coll("_private_users").insert_one(private_doc)
+    await db.coll("_private_users").update_one(
+        {"email": email, "app_id": app_id},
+        {"$setOnInsert": private_doc},
+        upsert=True,
+    )
 
     await _send_otp_email(email_provider, email, otp, app_name)
 

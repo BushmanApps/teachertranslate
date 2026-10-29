@@ -142,23 +142,36 @@ async def complete_oauth_login(
         full_name = name or email.split("@")[0]
         user_doc = build_new_user_doc(email, full_name, settings.APP_ID)
         user_doc["is_verified"] = True
-        await db.coll("User").insert_one(user_doc)
-        user_id = str(user_doc["_id"])
+        try:
+            await db.coll("User").insert_one(user_doc)
+        except DuplicateKeyError:
+            # Parallel OAuth callbacks for the same account must converge on
+            # the first persisted user, not leave the second callback failed.
+            user = await db.coll("User").find_one(
+                {"email": email, "app_id": settings.APP_ID}
+            )
+            if not user:
+                raise
+            is_new_user = False
+            if not user.get("is_verified"):
+                await db.coll("User").update_one(
+                    {"_id": user["_id"]},
+                    {"$set": {"is_verified": True, "updated_date": utcnow_naive()}},
+                )
+            user_id = str(user["_id"])
+        else:
+            user_id = str(user_doc["_id"])
 
     login_oauth_tokens = build_login_oauth_tokens(provider, oauth_tokens)
-
-    existing_private = await db.coll("_private_users").find_one(
-        {"email": email, "app_id": settings.APP_ID}
+    private_doc = build_private_user_doc(email, settings.APP_ID, user_id)
+    await db.coll("_private_users").update_one(
+        {"email": email, "app_id": settings.APP_ID},
+        {
+            "$setOnInsert": private_doc,
+            "$set": {"login_oauth_tokens": login_oauth_tokens},
+        },
+        upsert=True,
     )
-    if existing_private:
-        await db.coll("_private_users").update_one(
-            {"_id": existing_private["_id"]},
-            {"$set": {"login_oauth_tokens": login_oauth_tokens}},
-        )
-    else:
-        private_doc = build_private_user_doc(email, settings.APP_ID, user_id)
-        private_doc["login_oauth_tokens"] = login_oauth_tokens
-        await db.coll("_private_users").insert_one(private_doc)
 
     # Workflows: an OAuth-created user is a `signup` (they come into being
     # verified — the same "when the user actually exists" rule OTP
