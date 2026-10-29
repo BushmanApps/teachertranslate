@@ -166,22 +166,32 @@ export default async function(req) {
 
       // ── Per-account caps across ALL reports (not resettable via new translations) ──
       const dayAgoISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const sentToday = await base44.asServiceRole.entities.ReportShareLog.count(
-        { sender_user_id: user.id, created_date: { $gte: dayAgoISO } }
+      const sentToday = await base44.asServiceRole.entities.ReportShareLog.filter(
+        { sender_user_id: user.id, created_date: { $gte: dayAgoISO } },
+        '-created_date',
+        10
       );
-      if (sentToday >= 10) {
+      if (Array.isArray(sentToday) && sentToday.length >= 10) {
         return Response.json({ error: 'You can share up to 10 reports per day. Please try again tomorrow.' }, { status: 429 });
       }
       const monthAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const priorToRecipient = await base44.asServiceRole.entities.ReportShareLog.count(
-        { sender_user_id: user.id, recipient_email: customRecipient, created_date: { $gte: monthAgoISO } }
+      const priorToRecipient = await base44.asServiceRole.entities.ReportShareLog.filter(
+        { sender_user_id: user.id, recipient_email: customRecipient, created_date: { $gte: monthAgoISO } },
+        '-created_date',
+        1
       );
-      if (priorToRecipient === 0) {
+      if (!Array.isArray(priorToRecipient) || priorToRecipient.length === 0) {
         const monthLogs = await base44.asServiceRole.entities.ReportShareLog.filter(
           { sender_user_id: user.id, created_date: { $gte: monthAgoISO } },
-          { distinct: 'recipient_email', limit: 100 }
+          '-created_date',
+          500
         );
-        if ((monthLogs?.items || []).length >= 20) {
+        const uniqueMonthlyRecipients = new Set(
+          (Array.isArray(monthLogs) ? monthLogs : [])
+            .map((log) => (log.recipient_email || '').toLowerCase())
+            .filter(Boolean)
+        );
+        if (uniqueMonthlyRecipients.size >= 20) {
           return Response.json({ error: 'You can share reports with at most 20 different email addresses per month.' }, { status: 429 });
         }
       }
