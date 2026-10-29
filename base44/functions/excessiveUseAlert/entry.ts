@@ -37,7 +37,7 @@ export default async function(req) {
 
     // The caller must own the translation whose create event triggered this run,
     // so a logged-in user cannot probe another user's activity by passing their ID.
-    if (!fetched || fetched.created_by_id !== user.id) {
+    if (!fetched || (fetched.created_by_id !== user.id && user.role !== 'admin')) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const creatorEmail = fetched?.creator_email;

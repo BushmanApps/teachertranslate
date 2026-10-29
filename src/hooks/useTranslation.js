@@ -74,12 +74,9 @@ export function useTranslation({ userProfile, setUserProfile, activeStudent, cur
           session_request_count: sessionTranslationCount.current
         });
 
-        const isSubscribed = !!userProfile?.is_subscribed;
-        if (isSubscribed) {
-          const translationId = await saveTranslationRecord(text, newResult, studentName, studentYear);
-          if (translationId) {
-            setResult(prev => prev ? { ...prev, id: translationId } : prev);
-          }
+        const translationId = await saveTranslationRecord(text, newResult, studentName, studentYear);
+        if (translationId) {
+          setResult(prev => prev ? { ...prev, id: translationId } : prev);
         }
         syncScansUsed(res.data.scans_used);
       }
@@ -125,7 +122,7 @@ export function useTranslation({ userProfile, setUserProfile, activeStudent, cur
             performance_summary: newResult.overall_performance_summary,
             subject_area: newResult.sections?.[0]?.subject_or_area || "General"
           });
-        } else if (isSubscribed) {
+        } else {
           const translationId = await saveTranslationRecord(text, newResult, studentName, studentYear);
           if (translationId) {
             setResult(prev => prev ? { ...prev, id: translationId } : prev);
