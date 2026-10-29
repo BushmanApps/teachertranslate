@@ -16,7 +16,8 @@
     "S3_ENDPOINT_URL": "https://toeynygydmamcxnxakhb.storage.supabase.co/storage/v1/s3",
     "S3_PUBLIC_URL": "https://toeynygydmamcxnxakhb.storage.supabase.co/storage/v1/object/public/eb44-assets",
     "APPLE_TEAM_ID": "9DVTCP3T39",
-    "MOBILE_IOS_BUNDLE_ID": "com.base69fc81cf4f6a0ae5ab617e2b.app"
+    "MOBILE_IOS_BUNDLE_ID": "com.base69fc81cf4f6a0ae5ab617e2b.app",
+    "MOBILE_ANDROID_PACKAGE": "com.base69fc81cf4f6a0ae5ab617e2b.app"
   },
   "functionsDir": "base44/functions"
 }
