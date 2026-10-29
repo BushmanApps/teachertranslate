@@ -14,7 +14,8 @@
     "S3_BUCKET": "eb44-assets",
     "S3_REGION": "ap-southeast-2",
     "S3_ENDPOINT_URL": "https://toeynygydmamcxnxakhb.storage.supabase.co/storage/v1/s3",
-    "S3_PUBLIC_URL": "https://toeynygydmamcxnxakhb.storage.supabase.co/storage/v1/object/public/eb44-assets"
+    "S3_PUBLIC_URL": "https://toeynygydmamcxnxakhb.storage.supabase.co/storage/v1/object/public/eb44-assets",
+    "APPLE_TEAM_ID": "9DVTCP3T39"
   },
   "functionsDir": "base44/functions"
 }
