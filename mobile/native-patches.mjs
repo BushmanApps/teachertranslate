@@ -1079,10 +1079,11 @@ export function iosIdentity(root, env) {
 // never passed to xcodebuild as arguments: those reach every target the build
 // compiles, a plugin's own framework and resource bundle included, and Apple
 // refuses an app with two bundles of one id (ITMS-90685; measured 2026-10-21
-// with the barcode scanner's resource bundle). iPhone only (device family 1).
+// with the barcode scanner's resource bundle). Keep the universal device
+// family so an App Store update retains both iPhone and iPad support.
 export function setIosAppTarget(root, identity) {
   const pbxproj = root + "/ios/App/App.xcodeproj/project.pbxproj";
-  const wanted = { PRODUCT_BUNDLE_IDENTIFIER: identity.bundleId, TARGETED_DEVICE_FAMILY: "1" };
+  const wanted = { PRODUCT_BUNDLE_IDENTIFIER: identity.bundleId, TARGETED_DEVICE_FAMILY: "1,2" };
   if (identity.version) wanted.MARKETING_VERSION = identity.version;
   if (identity.build) wanted.CURRENT_PROJECT_VERSION = identity.build;
   let targets = 0;
