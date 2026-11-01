@@ -1,5 +1,5 @@
 {
-  "appUrl": "https://www.teachertranslate.com.au",
+  "appUrl": "https://teachertranslate.eb44.app",
   "env": {
     "MONGO_DB": "teachertranslate",
     "APP_ID": "69fc81cf4f6a0ae5ab617e2b",

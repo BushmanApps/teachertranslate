@@ -8,10 +8,11 @@
 // between the two environments is the `BASE_URL` value in `.env.local`
 // (E2B preview URL in the sandbox; `http://localhost:5173` locally).
 
-import { defineConfig, loadEnv, mergeConfig, type Plugin } from "vite";
+import { defineConfig, mergeConfig, type Plugin } from "vite";
 import baseConfig from "./vite.config";
 
 const PREVIEW_PORT = parseInt(process.env.PREVIEW_PORT ?? "5173", 10);
+const BACKEND = "http://localhost:8000";
 
 // Reads a preview JWT from a URL fragment (`#preview-token=…`), scrubs the
 // fragment from the URL bar (so it doesn't leak via bookmarks / history),
@@ -135,11 +136,7 @@ const posthogInjectPlugin: Plugin = {
   },
 };
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  const BACKEND = env.EB44_BACKEND_PROXY ?? "https://www.teachertranslate.com.au";
-
-  return mergeConfig(baseConfig, defineConfig({
+export default mergeConfig(baseConfig, defineConfig({
   plugins: [standalonePageRoutesPlugin, previewAuthInjectPlugin, posthogInjectPlugin],
   server: {
     host: "0.0.0.0",
@@ -167,9 +164,9 @@ export default defineConfig(({ mode }) => {
       "/ws": { target: BACKEND.replace(/^http/, "ws"), ws: true, xfwd: true },
       "/health": { target: BACKEND, changeOrigin: true, xfwd: true },
       "/functions": { target: BACKEND, changeOrigin: true, xfwd: true },
-      // Realtime rooms use the same live-backend fallback in preview mode.
-      "/parties": { target: BACKEND.replace(/^http/, "ws"), ws: true },
+      // The WebSockets of the app's realtime rooms (Base44 Actors) go to the
+      // actors host the dev script starts (`.escapebase44/actors-host/`).
+      "/parties": { target: "ws://localhost:8004", ws: true },
     },
   },
-  }));
-});
+}));
