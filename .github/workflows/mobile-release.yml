@@ -1,4 +1,4 @@
-# EscapeBase44 mobile kit v5
+# EscapeBase44 mobile kit v6
 #
 # Build store-ready mobile apps from this repo — no Mac, no Android Studio.
 # Your EscapeBase44 success page runs this for you and shows what happened;
@@ -46,6 +46,7 @@ jobs:
       asc_app_id: ${{ steps.asc.outputs.asc_app_id }}
       marketing_version: ${{ steps.asc.outputs.marketing_version }}
       build_number: ${{ steps.asc.outputs.build_number }}
+      device_family: ${{ steps.asc.outputs.device_family }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,6 +73,7 @@ jobs:
       ASC_APP_ID: ${{ needs.preflight.outputs.asc_app_id }}
       MARKETING_VERSION: ${{ needs.preflight.outputs.marketing_version }}
       BUILD_NUMBER: ${{ needs.preflight.outputs.build_number }}
+      DEVICE_FAMILY: ${{ needs.preflight.outputs.device_family }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -104,6 +106,7 @@ jobs:
           MOBILE_IOS_BUNDLE_ID: ${{ env.BUNDLE_ID }}
           MOBILE_IOS_VERSION: ${{ env.MARKETING_VERSION }}
           MOBILE_IOS_BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+          MOBILE_IOS_DEVICE_FAMILY: ${{ env.DEVICE_FAMILY }}
         run: node mobile/setup.mjs ios
       - name: Write the App Store Connect key
         env:
@@ -146,7 +149,7 @@ jobs:
             echo "::error::The archived app carries no push entitlement — a kit defect, not yours. EscapeBase44 has been told."
             exit 1
           fi
-          echo "Archived $BUNDLE_ID $MARKETING_VERSION ($BUILD_NUMBER), entitled for push."
+          echo "Archived $BUNDLE_ID $MARKETING_VERSION ($BUILD_NUMBER) for device family $DEVICE_FAMILY, entitled for push."
       - name: Export the signed app
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -302,14 +305,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p build
-          cp android/app/build/outputs/bundle/release/app-release.aab "build/www-android.aab"
-          cp android/app/build/outputs/apk/release/app-release.apk "build/www-android.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab "build/teachertranslate-android.aab"
+          cp android/app/build/outputs/apk/release/app-release.apk "build/teachertranslate-android.apk"
           if ! gh release view mobile-builds >/dev/null 2>&1; then
             gh release create mobile-builds --target "$GITHUB_SHA" --prerelease --title "Mobile builds" \
               --notes "The latest Android files built by the Mobile release workflow. The .apk installs on any Android phone; the .aab is the file Google Play takes."
           fi
-          gh release upload mobile-builds "build/www-android.aab" "build/www-android.apk" --clobber
-          echo 'EB44 {"kind":"published","platform":"android","apk":"www-android.apk","aab":"www-android.aab"}'
+          gh release upload mobile-builds "build/teachertranslate-android.aab" "build/teachertranslate-android.apk" --clobber
+          echo 'EB44 {"kind":"published","platform":"android","apk":"teachertranslate-android.apk","aab":"teachertranslate-android.aab"}'
       - name: Upload to Google Play (internal testing)
         env:
           IAP_GOOGLE_SA_JSON_B64: ${{ secrets.IAP_GOOGLE_SA_JSON_B64 }}
@@ -322,4 +325,4 @@ jobs:
             exit 0
           fi
           PACKAGE=$(node --input-type=module -e 'import { androidIdentity } from "./mobile/native-patches.mjs"; console.log(androidIdentity(process.cwd(), process.env).packageName)')
-          node mobile/play-upload.mjs "build/www-android.aab" "$PACKAGE"
+          node mobile/play-upload.mjs "build/teachertranslate-android.aab" "$PACKAGE"

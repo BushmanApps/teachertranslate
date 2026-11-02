@@ -1063,7 +1063,9 @@ export function androidIdentity(root, env) {
 // The iPhone app's store identity and version: the workflow's (the App Store
 // Connect preflight's answer), else the repo's facts, else Capacitor's appId;
 // a version and build number only when the workflow gives them (on your own
-// machine the project keeps its own).
+// machine the project keeps its own). The devices: iPhone and iPad when the
+// preflight says the version on sale supports the iPad (an update must keep
+// every device it had), the iPhone alone otherwise.
 export function iosIdentity(root, env) {
   const configPath = root + "/.escapebase44/config.json";
   const facts = existsSync(configPath) ? JSON.parse(readFileSync(configPath, "utf-8")).env || {} : {};
@@ -1072,6 +1074,7 @@ export function iosIdentity(root, env) {
     bundleId: env.MOBILE_IOS_BUNDLE_ID || facts.MOBILE_IOS_BUNDLE_ID || capacitor.appId,
     version: env.MOBILE_IOS_VERSION || "",
     build: env.MOBILE_IOS_BUILD_NUMBER || "",
+    deviceFamily: env.MOBILE_IOS_DEVICE_FAMILY === "1,2" ? "1,2" : "1",
   };
 }
 
@@ -1079,10 +1082,12 @@ export function iosIdentity(root, env) {
 // never passed to xcodebuild as arguments: those reach every target the build
 // compiles, a plugin's own framework and resource bundle included, and Apple
 // refuses an app with two bundles of one id (ITMS-90685; measured 2026-10-21
-// with the barcode scanner's resource bundle). iPhone only (device family 1).
+// with the barcode scanner's resource bundle). The device family is the
+// identity's: 1 (iPhone) or 1,2 (iPhone and iPad).
 export function setIosAppTarget(root, identity) {
   const pbxproj = root + "/ios/App/App.xcodeproj/project.pbxproj";
-  const wanted = { PRODUCT_BUNDLE_IDENTIFIER: identity.bundleId, TARGETED_DEVICE_FAMILY: "1" };
+  const family = identity.deviceFamily === "1,2" ? "1,2" : "1";
+  const wanted = { PRODUCT_BUNDLE_IDENTIFIER: identity.bundleId, TARGETED_DEVICE_FAMILY: family };
   if (identity.version) wanted.MARKETING_VERSION = identity.version;
   if (identity.build) wanted.CURRENT_PROJECT_VERSION = identity.build;
   let targets = 0;
@@ -1100,4 +1105,15 @@ export function setIosAppTarget(root, identity) {
   });
   if (targets === 0) throw new Error(pbxproj + ": expected the app target's build settings (INFOPLIST_FILE = App/Info.plist)");
   writeFileSync(pbxproj, pbx);
+  // On the iPad, an app that turns fewer than all four ways has to say it
+  // takes the whole screen, or Apple refuses the upload (90474: the iPad's
+  // multitasking wants every orientation). The app's own word, when it set
+  // one in ios.infoPlist, stands.
+  if (family === "1,2") {
+    const plistPath = root + "/ios/App/App/Info.plist";
+    const plist = readFileSync(plistPath, "utf-8");
+    const info = plistObject(plist);
+    const turns = info["UISupportedInterfaceOrientations~ipad"] || info.UISupportedInterfaceOrientations || [];
+    if (turns.length < 4 && info.UIRequiresFullScreen === undefined) writeFileSync(plistPath, plistSet(plist, "UIRequiresFullScreen", true));
+  }
 }
