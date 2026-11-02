@@ -158,7 +158,7 @@ export default function Home() {
   const isSubscribed = !!userProfile?.is_subscribed;
 
   // Refresh subscription status when the app returns to the foreground
-  // after a Stripe checkout in the external browser.
+  // after a native subscription purchase.
   useCheckoutResumeSync({ refreshUserData, isSubscribed, closeModal });
 
   useThemeColor({ isBrutal, isHilarious, isDark });
@@ -180,7 +180,7 @@ export default function Home() {
   const loaded = !userDataLoading && !studentsLoading;
 
 
-  // After Stripe redirect, sync subscription status and reload data
+  // Refresh native subscription status and reload data
   useEffect(() => {
     const params = new URLSearchParams(location.search);
 

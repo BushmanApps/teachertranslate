@@ -28,7 +28,7 @@
     "is_subscribed": {
       "type": "boolean",
       "default": false,
-      "description": "Effective Pro access \u2014 reconciled from Stripe subscription status, admin_override, and lifetime_pro. Written by checkSubscription and the Stripe webhook; do not set manually (use admin_override instead)."
+      "description": "Effective Pro access \u2014 reconciled from native store subscription status, admin_override, and lifetime_pro. Written by checkSubscription and the native store verification; do not set manually (use admin_override instead)."
     },
     "admin_override": {
       "type": "string",

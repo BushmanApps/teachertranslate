@@ -21,16 +21,18 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from bson import ObjectId
 from fastapi import Depends, Request
 from fastapi.routing import APIRouter
 from pydantic import BaseModel
 
 from app.config import Settings
+from app.core import db
 from app.core.errors import AppHTTPException
 from app.core.mobile_identity import android_package, ios_bundle_id
 from app.core.security.pipeline import AuthedContext, get_authed_context
 from app.deps import get_settings
-from app.modules.iap import apple, google, packs, store
+from app.modules.iap import apple, google, packs, store, subscriptions
 
 logger = logging.getLogger("escapebase44.iap")
 
@@ -106,6 +108,17 @@ async def _verified(platform: str, tx: IapTransaction, settings: Settings, decla
     return await google.verify_purchase(_sa(settings), android_package(settings), tx.product_id, tx.purchase_token, kind)
 
 
+async def _sync_owner(user_id: str | None, settings: Settings) -> None:
+    if not user_id:
+        return
+    try:
+        user = await db.coll("User").find_one({"_id": ObjectId(user_id)})
+        if user:
+            await subscriptions.reconcile(user, settings)
+    except Exception:
+        logger.exception("Native subscription profile reconciliation failed")
+
+
 async def _settle(user_id: str | None, platform: str, normalized: dict, settings: Settings, declared: dict) -> str:
     """Record a verified purchase for its owner: a credit pack delivered, an
     unlock or a subscription granted. Returns what happened."""
@@ -169,8 +182,10 @@ async def verify(
         except AppHTTPException as e:
             rejected.append({"product_id": tx.product_id, "reason": e.message})
 
+    profile = await subscriptions.reconcile(user, settings)
     return {
         "entitlements": await store.active_for_user(user["id"], settings),
+        "profile": profile,
         "delivered": delivered,
         "settled": settled,
         "rejected": rejected,
@@ -183,7 +198,13 @@ async def entitlements(
     settings: Settings = Depends(get_settings),
 ):
     user = _require_user(ctx)
-    return {"entitlements": await store.active_for_user(user["id"], settings)}
+    profile = await subscriptions.reconcile(user, settings)
+    return {"entitlements": await store.active_for_user(user["id"], settings), "profile": profile}
+
+
+async def subscription(app_id: str, ctx: AuthedContext = Depends(get_authed_context), settings: Settings = Depends(get_settings)):
+    user = _require_user(ctx)
+    return await subscriptions.reconcile(user, settings)
 
 
 # ── the stores' own servers ──────────────────────────────────────────────
@@ -211,8 +232,11 @@ async def apple_notifications(app_id: str, request: Request, settings: Settings 
             elif n.type == "ONE_TIME_CHARGE" and tx["product_id"] in declared:
                 await _settle(None, "ios", tx, settings, declared)
         else:
+            if n.auto_renew_disabled is not None:
+                tx = {**tx, "auto_renew_disabled": n.auto_renew_disabled}
             owner = await store.owner_of(None, "ios", tx)
             await store.grant(owner, "ios", tx)
+            await _sync_owner(owner, settings)
     await store.first_sight("apple", n.uuid, {"type": n.type, "subtype": n.subtype, "environment": n.environment})
     return {"ok": True}
 
@@ -238,7 +262,8 @@ async def _play_event(n: google.Notification, settings: Settings) -> None:
     package = android_package(settings)
     declared = packs.parse(settings.IAP_CREDIT_PACKS)
     if n.kind == "voided":
-        await store.revoke("android", n.purchase_token)
+        revoked = await store.revoke("android", n.purchase_token)
+        await _sync_owner((revoked or {}).get("user_id"), settings)
         return
     if n.kind == "subscription":
         tx = await google.verify_purchase(sa, package, n.product_id, n.purchase_token, "subs")
@@ -246,6 +271,7 @@ async def _play_event(n: google.Notification, settings: Settings) -> None:
             tx = {**tx, "revoked": True}
         owner = await store.owner_of(None, "android", tx)
         await store.grant(owner, "android", tx)
+        await _sync_owner(owner, settings)
         return
     if n.kind == "one_time" and n.event == google.ONE_TIME_PURCHASED:
         kind = "consumable" if n.product_id in declared else "inapp"
@@ -262,6 +288,7 @@ async def notifications_status(app_id: str):
 router.add_api_route("/config", config, methods=["GET"])
 router.add_api_route("/verify", verify, methods=["POST"])
 router.add_api_route("/entitlements", entitlements, methods=["GET"])
+router.add_api_route("/subscription", subscription, methods=["GET"])
 router.add_api_route("/apple/notifications", apple_notifications, methods=["POST"])
 router.add_api_route("/google/notifications", google_notifications, methods=["POST"])
 router.add_api_route("/notifications", notifications_status, methods=["GET"])

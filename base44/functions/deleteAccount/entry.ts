@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import Stripe from 'npm:stripe@14.21.0';
 import { sydneyTimestamp } from '../../shared/sydneyTime.ts';
 
 Deno.serve(async (req) => {
@@ -13,7 +12,6 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
     const userEmail = user.email?.toLowerCase();
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'));
 
     // Parse optional delete mode: "immediate" (default) or "deferred"
     // - immediate: cancel subscription now and delete account + all data
@@ -26,33 +24,9 @@ Deno.serve(async (req) => {
       if (body?.deleteMode === 'deferred') deleteMode = 'deferred';
     } catch (_) { /* no body or invalid JSON — default to immediate */ }
 
-    // 1. Handle Stripe subscription
-    let deferredUntil = null;
-    try {
-      const profiles = await base44.asServiceRole.entities.UserProfile.filter({ email: user.email });
-      if (profiles && profiles.length > 0 && profiles[0].is_subscribed) {
-        // Find the Stripe customer via checkout sessions
-        const sessions = await stripe.checkout.sessions.list({ limit: 100 });
-        const userSession = sessions.data.find(s => s.metadata?.user_id === userId);
-        if (userSession?.customer) {
-          const subscriptions = await stripe.subscriptions.list({ customer: userSession.customer, status: 'active', limit: 10 });
-          for (const sub of subscriptions.data) {
-            if (deleteMode === 'deferred') {
-              // Schedule cancellation at the end of the current period —
-              // user keeps Pro access until then.
-              await stripe.subscriptions.update(sub.id, { cancel_at_period_end: true });
-              deferredUntil = new Date(sub.current_period_end * 1000).toISOString().split('T')[0];
-              console.log(`Scheduled subscription ${sub.id} to cancel at period end (${deferredUntil}) for user ${userId}`);
-            } else {
-              await stripe.subscriptions.cancel(sub.id);
-              console.log(`Cancelled Stripe subscription ${sub.id} for user ${userId}`);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Stripe cancellation error (non-fatal):', e.message);
-    }
+    // Native subscriptions are cancelled by the customer in App Store or Google Play.
+    // Store notifications update the profile as soon as that cancellation is confirmed.
+    const deferredUntil = null;
 
     // Deferred mode: stop here — account and data are kept so the user
     // retains Pro until the renewal date, then reverts to a trial user.

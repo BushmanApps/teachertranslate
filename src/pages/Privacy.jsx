@@ -31,7 +31,7 @@ export default function Privacy() {
                 <li><strong>Student profile data:</strong> Year levels and optional student names you provide to personalise results.</li>
                 <li><strong>Report content:</strong> The teacher comment text (report) you submit for translation. This is processed by our AI and stored so you can access your history.</li>
                 <li><strong>Usage data:</strong> Number of scans used, subscription status, and timestamps of activity.</li>
-                <li><strong>Payment information:</strong> Payments are handled securely by Stripe. We do not store your credit card details.</li>
+                <li><strong>Payment information:</strong> Payments are handled securely by Apple App Store or Google Play. We do not store your payment card details.</li>
               </ul>
             )
           },
@@ -113,7 +113,7 @@ export default function Privacy() {
             title: "7. Third-Party Services",
             content: (
               <ul className="list-disc pl-5 space-y-2 text-sm text-foreground/80">
-                <li><strong>Stripe:</strong> Used for secure payment processing outside of this app or your app store. Subject to Stripe's own <a href="https://stripe.com/au/privacy" className="underline">privacy policy</a>.</li>
+                <li><strong>Apple App Store and Google Play:</strong> Used to process subscriptions securely under their respective privacy policies.</li>
                 <li><strong>Gemini / AI models:</strong> Report text is sent to AI providers for translation.</li>
                 <li><strong>Base44:</strong> The platform powering our backend infrastructure.</li>
               </ul>

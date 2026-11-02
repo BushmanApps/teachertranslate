@@ -131,6 +131,8 @@ async def grant(user_id: str | None, platform: str, tx: dict) -> None:
     }
     if tx.get("account_token"):
         fields["account_token"] = tx["account_token"]
+    if "auto_renew_disabled" in tx:
+        fields["auto_renew_disabled"] = tx["auto_renew_disabled"]
     if user_id is not None:
         fields["user_id"] = user_id
     await coll.update_one(

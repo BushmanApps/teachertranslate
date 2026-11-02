@@ -145,6 +145,7 @@ async def _verify_subscription(client, headers, package, product_id, purchase_to
         and state not in _ENTITLED_SUB_STATES
         and state != "SUBSCRIPTION_STATE_EXPIRED",
         "quantity": 1,
+        "auto_renew_disabled": state == "SUBSCRIPTION_STATE_CANCELED",
         "account_token": account.lower() if account else None,
     }
 

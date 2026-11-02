@@ -30,33 +30,22 @@ export default function PaywallModal({ isOpen, onClose, isBrutal, variant = "lim
   const [loading, setLoading] = useState(false);
 
   async function handleSubscribe() {
-    // Remember that a checkout is in progress so the resume hook can
-    // re-check subscription status when the app returns to the foreground.
-    try { sessionStorage.setItem("tt_checkout_pending", "1"); } catch {}
-
-    const isFramed = window.self !== window.top;
-    const checkoutTab = isFramed ? window.open("", "_blank") : null;
-    if (isFramed && !checkoutTab) {
-      alert("Please allow popups to continue to checkout.");
-      try { sessionStorage.removeItem("tt_checkout_pending"); } catch {}
-      return;
-    }
-    if (checkoutTab) checkoutTab.opener = null;
-
     setLoading(true);
     try {
-      const res = await base44.functions.invoke("createCheckout", {});
-      if (res.data?.url) {
-        if (checkoutTab) {
-          checkoutTab.location.replace(res.data.url);
-        } else {
-          window.location.href = res.data.url;
-        }
+      const iap = window.eb44?.iap;
+      if (!iap || !(await iap.available())) {
+        throw new Error("Subscriptions are available through the Teacher Translate iPhone or Android app.");
       }
+      const entitlements = await iap.purchase("teacher_translate_pro_users", { type: "subs" });
+      const hasPro = Array.isArray(entitlements) && entitlements.some((item) => item.product_id === "teacher_translate_pro_users");
+      if (!hasPro) throw new Error("Your purchase could not be confirmed. Please try restoring purchases.");
+      await base44.functions.invoke("checkSubscription", {});
+      alert("Welcome to Pro! Your subscription is active and all Pro features are now unlocked.");
+      onClose?.();
+      window.location.reload();
     } catch (e) {
-      checkoutTab?.close();
-      try { sessionStorage.removeItem("tt_checkout_pending"); } catch {}
-      alert("Something went wrong. Please try again.");
+      console.error("Native subscription failed:", e);
+      alert(e.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

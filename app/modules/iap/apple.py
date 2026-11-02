@@ -154,6 +154,7 @@ class Notification:
     # The transaction it is about, normalized like a verified purchase —
     # None for a notification that carries none (TEST, the summary ones).
     transaction: dict | None
+    auto_renew_disabled: bool | None
 
 
 def verify_notification(signed_payload: str, expected_bundle_id: str) -> Notification:
@@ -173,6 +174,12 @@ def verify_notification(signed_payload: str, expected_bundle_id: str) -> Notific
             f"Notification is for bundle {data.get('bundleId')!r}, but this app is {expected_bundle_id!r}",
         )
     transaction = None
+    auto_renew_disabled = None
+    renewal = data.get("signedRenewalInfo")
+    if renewal:
+        renewal_info = _verified_payload(renewal, "renewal info")
+        if renewal_info.get("autoRenewStatus") is not None:
+            auto_renew_disabled = str(renewal_info["autoRenewStatus"]) == "0"
     signed = data.get("signedTransactionInfo")
     if signed:
         inner = _verified_payload(signed, "transaction")
@@ -187,6 +194,7 @@ def verify_notification(signed_payload: str, expected_bundle_id: str) -> Notific
         subtype=payload.get("subtype"),
         environment=str(data.get("environment") or "Production"),
         transaction=transaction,
+        auto_renew_disabled=auto_renew_disabled,
     )
 
 

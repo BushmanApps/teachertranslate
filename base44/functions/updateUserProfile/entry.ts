@@ -28,7 +28,7 @@ function stripUndefined(obj) {
 // Reuse the best existing profile, fold duplicates into it (preserving
 // consent / admin_override / lifetime_pro / scans / email / name), delete
 // the leftovers, and create one profile if none exists. is_subscribed is
-// NOT folded — it is always recomputed by checkSubscription from Stripe
+// NOT folded — it is always recomputed by checkSubscription from native store verification
 // status + admin_override + lifetime_pro. Safe to call concurrently.
 async function resolveUserProfile(base44, userId, userEmail, options = {}) {
   const { createFields = {}, updateFields = {}, alwaysUpdate = false } = options;
@@ -112,7 +112,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 // Safe, user-editable profile fields. email, is_subscribed, admin_override
 // and scans_used are deliberately excluded — subscription status is only
-// written by the Stripe-backed functions (checkSubscription / webhook),
+// written by the native purchase functions (checkSubscription / webhook),
 // admin_override only by the dashboard, and scans_used only by translateReport.
 const ALLOWED_FIELDS = ['user_name', 'consent_given_date'];
 

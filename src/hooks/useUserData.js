@@ -30,7 +30,7 @@ export function useUserData() {
       const lifetimePro = !!existingProfile?.lifetime_pro;
 
       // checkSubscription is the single source of truth — it reconciles
-      // is_subscribed from Stripe status + admin_override + lifetime_pro
+      // is_subscribed from native store status + admin_override + lifetime_pro
       // and persists the result. The stored existingProfile.is_subscribed
       // is NOT trusted as a fallback (it could be stale from a lapsed sub).
       let profile;
@@ -51,7 +51,7 @@ export function useUserData() {
       }
 
       // Lifetime Pro (admin-only grant) gives full Pro access with no
-      // Stripe subscription or renewal date.
+      // native subscription or renewal date.
       profile.lifetime_pro = lifetimePro;
       profile.is_subscribed = profile.is_subscribed || lifetimePro;
 

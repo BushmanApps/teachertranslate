@@ -1,6 +1,6 @@
 {
   "name": "Pro Welcome Email on Subscription",
-  "description": "Sends a branded Pro welcome email (plus admin copy) when a UserProfile's is_subscribed is set to true \u2014 covers Stripe purchases, checkSubscription syncs, and manual backend enables.",
+  "description": "Sends a branded Pro welcome email (plus admin copy) when a UserProfile's is_subscribed is set to true \u2014 covers native purchases, checkSubscription syncs, and manual backend enables.",
   "trigger": {
     "condition": "${ (.trigger.data.is_subscribed == true) }",
     "config": {

@@ -6,11 +6,11 @@ const PENDING_KEY = "tt_checkout_pending";
 
 /**
  * Refreshes subscription status when the app returns to the foreground
- * after a Stripe checkout in the external browser.
+ * after a native subscription purchase in the external browser.
  *
- * Before opening Stripe, PaywallModal sets a sessionStorage flag. When
+ * Before opening native purchase, PaywallModal sets a sessionStorage flag. When
  * the app resumes (Capacitor appStateChange, visibilitychange, or
- * pageshow), this hook polls checkSubscription a few times — the Stripe
+ * pageshow), this hook polls checkSubscription a few times — the native purchase
  * webhook can take a few seconds to fire — then refreshes user data and
  * shows a "Welcome to Pro" toast when the subscription is detected.
  */

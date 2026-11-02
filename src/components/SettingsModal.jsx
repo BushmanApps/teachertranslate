@@ -106,6 +106,15 @@ export default function SettingsModal({ isOpen, onClose, studentYear, studentNam
   const [deletingDeferred, setDeletingDeferred] = useState(false);
 
   async function handleDeleteAccount(mode) {
+    if (mode === "deferred" && window.eb44?.isMobileApp?.()) {
+      const platform = window.Capacitor?.getPlatform?.();
+      const packageName = "com.base69fc81cf4f6a0ae5ab617e2b.app";
+      const url = platform === "ios"
+        ? "https://apps.apple.com/account/subscriptions"
+        : `https://play.google.com/store/account/subscriptions?package=${packageName}&sku=teacher_translate_pro_users`;
+      window.location.assign(url);
+      return;
+    }
     setDeletingAccount(true);
     try {
       await base44.functions.invoke("deleteAccount", { deleteMode: mode });
