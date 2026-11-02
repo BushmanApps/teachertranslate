@@ -114,8 +114,6 @@
         "npm:@radix-ui/react-toggle-group@^1.1.2",
         "npm:@radix-ui/react-toggle@^1.1.2",
         "npm:@radix-ui/react-tooltip@^1.1.8",
-        "npm:@stripe/react-stripe-js@3",
-        "npm:@stripe/stripe-js@^5.2.0",
         "npm:@tanstack/react-query@^5.84.1",
         "npm:@types/node@^22.13.5",
         "npm:@types/react-dom@^18.2.22",

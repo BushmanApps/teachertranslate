@@ -136,7 +136,7 @@ const posthogInjectPlugin: Plugin = {
   },
 };
 
-export default mergeConfig(baseConfig, defineConfig({
+export default defineConfig(async (env) => mergeConfig(await (typeof baseConfig === "function" ? baseConfig(env) : baseConfig), {
   plugins: [standalonePageRoutesPlugin, previewAuthInjectPlugin, posthogInjectPlugin],
   server: {
     host: "0.0.0.0",
