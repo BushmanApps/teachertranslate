@@ -44,7 +44,7 @@ export function useCheckoutResumeSync({ refreshUserData, isSubscribed, closeModa
         for (let i = 0; i < 6 && !detected; i++) {
           if (i > 0) await new Promise((r) => setTimeout(r, 2500));
           try {
-            const res = await base44.functions.invoke("checkSubscription", {});
+            const res = await base44.functions.invoke("checkSubscription", { native: Boolean(window.eb44?.isMobileApp?.()) });
             if (res?.data?.is_subscribed) detected = true;
           } catch (e) {
             console.error("Resume sync check failed:", e);

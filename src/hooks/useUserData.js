@@ -20,7 +20,7 @@ export function useUserData() {
       // (folding any duplicates), so run it first and then re-read to get the
       // single reconciled record — instead of deciding from an earlier read
       // that could race with the profile creation.
-      const subCheck = (await base44.functions.invoke("checkSubscription", {}))?.data;
+      const subCheck = (await base44.functions.invoke("checkSubscription", { native: Boolean(window.eb44?.isMobileApp?.()) }))?.data;
 
       // Read the single canonical profile from the backend (profiles are
       // owned by the backend, so the app can't read them directly).
