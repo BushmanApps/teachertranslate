@@ -79,7 +79,16 @@ function compare(a, b) {
   for (let i = 0; i < n; i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d !== 0) return d; }
   return 0;
 }
-function bump(v) { const p = parts(v); p[p.length - 1] += 1; return p.join("."); }
+// The next version above v, in a form a person reads on the store: the last
+// part bumped (1.9 → 1.10), or, when a part of v is a counter rather than a
+// number anyone chose (Base44 approved one app as 2.133512.3), the next major
+// (3.0).
+function next(v) {
+  const p = parts(v);
+  if (p.some(function (x) { return x > 999; })) return String(p[0] + 1) + ".0";
+  p[p.length - 1] += 1;
+  return p.join(".");
+}
 // A version in one of these states has shipped (or is on its way out the
 // door): Apple refuses a new build whose version is not higher than it.
 // The TestFlight group made for a new app, and the team roles Apple lets
@@ -236,44 +245,97 @@ async function main() {
     emit({ kind: "testers-invited", group: TESTERS_GROUP, invited: invited });
   }
 
-  // 6. The version and build number this upload must carry. Version: the
-  //    highest one App Store Connect has, bumped if that one has shipped
-  //    (Apple refuses a build for an approved version). Build number: above
-  //    both this repo's run count and whatever was uploaded before (a person
-  //    who uploaded builds through Base44 has higher numbers than our runs).
-  let version = env.MOBILE_VERSION || null;
-  if (!version) {
-    r = await asc("GET", "/v1/apps/" + app.id + "/appStoreVersions?filter[platform]=IOS&limit=200");
-    if (r.status !== 200) fail(r, "reading the app's versions");
-    let top = null;
-    for (const v of r.json.data || []) {
-      if (!top || compare(v.attributes.versionString, top.attributes.versionString) > 0) top = v;
-    }
-    if (!top) version = "1.0";
-    else {
-      const state = top.attributes.appVersionState || top.attributes.appStoreState;
-      version = SHIPPED.has(state) ? bump(top.attributes.versionString) : top.attributes.versionString;
-    }
+  // 6. What the upload must carry, read off everything Apple holds for the
+  //    app: its App Store versions, and every build with the version it was
+  //    built as and the App Store version it was submitted with.
+  r = await asc("GET", "/v1/apps/" + app.id + "/appStoreVersions?filter[platform]=IOS&limit=200");
+  if (r.status !== 200) fail(r, "reading the app's versions");
+  const versions = r.json.data || [];
+  const builds = [];
+  const included = {};
+  let page = "/v1/builds?filter[app]=" + app.id + "&include=appStoreVersion,preReleaseVersion&sort=-uploadedDate&limit=200";
+  while (page) {
+    r = await asc("GET", page);
+    if (r.status !== 200) fail(r, "reading the app's builds");
+    for (const b of r.json.data || []) builds.push(b);
+    for (const i of r.json.included || []) included[i.type + "/" + i.id] = i;
+    const more = r.json.links && r.json.links.next;
+    page = more ? new URL(more).pathname + new URL(more).search : null;
   }
-  r = await asc("GET", "/v1/builds?filter[app]=" + app.id + "&sort=-uploadedDate&limit=20");
-  if (r.status !== 200) fail(r, "reading the app's builds");
+  const shipped = versions.filter(function (v) { return SHIPPED.has(v.attributes.appVersionState || v.attributes.appStoreState); });
+  const shippedIds = new Set(shipped.map(function (v) { return v.id; }));
+
+  //    The version. Apple's bar is the version of the build it APPROVED
+  //    ("must contain a higher version than that of the previously approved
+  //    version"): the build submitted with each shipped App Store version,
+  //    whose version is not always the number the store shows — Base44
+  //    published an app as 1.9 whose approved build is 2.133512.3 (measured
+  //    2026-11-02: picked off the store's number, 1.10 was refused). A
+  //    version still being prepared above the bar is reused (the build lands
+  //    on the version the owner is preparing); otherwise the next one above
+  //    the bar. A version typed into the workflow that Apple would refuse
+  //    stops here, before the Mac.
+  let approved = null;
+  const raise = function (v) { if (v && (!approved || compare(v, approved) > 0)) approved = v; };
+  for (const v of shipped) raise(v.attributes.versionString);
   let highest = 0;
-  for (const b of r.json.data || []) {
+  for (const b of builds) {
     const n = Number(b.attributes && b.attributes.version);
     if (Number.isFinite(n) && n > highest) highest = n;
+    const rel = b.relationships || {};
+    const submitted = rel.appStoreVersion && rel.appStoreVersion.data;
+    const built = rel.preReleaseVersion && rel.preReleaseVersion.data;
+    if (submitted && built && shippedIds.has(submitted.id)) {
+      const pre = included["preReleaseVersions/" + built.id];
+      if (pre) raise(pre.attributes.version);
+    }
   }
+  let version = env.MOBILE_VERSION || null;
+  if (version) {
+    if (approved && compare(version, approved) <= 0) stop("version-too-low", { version: version, approvedVersion: approved });
+  } else {
+    let top = null;
+    for (const v of versions) {
+      if (!top || compare(v.attributes.versionString, top.attributes.versionString) > 0) top = v;
+    }
+    const preparing = top && !shippedIds.has(top.id) ? top.attributes.versionString : null;
+    if (preparing && (!approved || compare(preparing, approved) > 0)) version = preparing;
+    else version = approved ? next(approved) : "1.0";
+  }
+
+  //    The build number: above both this repo's run count and every build
+  //    uploaded before (a person who uploaded builds through Base44 has
+  //    higher numbers than our runs).
   const buildNumber = Math.max(RUN_NUMBER, highest + 1);
   // Apple has no build of this app yet: this upload is the one after which
   // Apple emails the testers their invitation (measured 2026-09-28: the
   // group made here before any build, the mail two minutes after the
   // upload). Every later build just appears in their TestFlight app.
-  const firstBuild = (r.json.data || []).length === 0;
+  const firstBuild = builds.length === 0;
+
+  //    The devices. An update keeps every device the version on sale
+  //    supports (Apple refuses one that drops the iPad, 90101). Apple's API
+  //    names no device family, but the version on sale's screenshots do: a
+  //    version approved for iPad carries iPad screenshots, one built for the
+  //    iPhone alone carries none (measured 2026-11-02 on the public store:
+  //    every universal app lists iPad screenshots, every iPhone-only app
+  //    none). Never iPad otherwise — a new app built for iPad would owe Apple
+  //    iPad screenshots.
+  let deviceFamily = "1";
+  const onSale = shipped.slice().sort(function (a, b) { return compare(b.attributes.versionString, a.attributes.versionString); })[0];
+  if (onSale) {
+    r = await asc("GET", "/v1/appStoreVersions/" + onSale.id + "/appStoreVersionLocalizations?limit=50&include=appScreenshotSets&limit[appScreenshotSets]=50&fields[appScreenshotSets]=screenshotDisplayType");
+    if (r.status !== 200) fail(r, "reading the screenshots of the version on sale");
+    const iPad = (r.json.included || []).some(function (s) { return s.type === "appScreenshotSets" && /^APP_IPAD/.test((s.attributes && s.attributes.screenshotDisplayType) || ""); });
+    if (iPad) deviceFamily = "1,2";
+  }
 
   output("bundle_id", BUNDLE_ID);
   output("asc_app_id", app.id);
   output("marketing_version", version);
   output("build_number", String(buildNumber));
-  emit({ kind: "preflight", bundleId: BUNDLE_ID, ascAppId: app.id, appName: app.attributes.name, version: version, buildNumber: buildNumber, firstBuild: firstBuild });
+  output("device_family", deviceFamily);
+  emit({ kind: "preflight", bundleId: BUNDLE_ID, ascAppId: app.id, appName: app.attributes.name, version: version, buildNumber: buildNumber, firstBuild: firstBuild, approvedVersion: approved, deviceFamily: deviceFamily });
 }
 
 main().catch(function (err) {

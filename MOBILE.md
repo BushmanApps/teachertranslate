@@ -1,4 +1,4 @@
-# Ship www as a mobile app
+# Ship teachertranslate as a mobile app
 
 This repo is mobile-ready. Your app is a standard web app (Vite + React)
 with a backend you own, wrapped into a real iOS/Android app with
@@ -193,10 +193,11 @@ and every build reads them.
   Google Play?** Keep the package name you published under (Base44's is
   `com.base<your Base44 app id>.app`; the card offers it), and either upload
   the keystore you signed with or — when Base44 signed your uploads — ask
-  Google to accept this repo's upload key instead: Play Console → your app →
-  Protected with Play → Play Store protection → Manage Play app signing →
-  under Upload key certificate, Request upload key reset, with the
-  `upload_certificate.pem` the card gives you. Once Google accepts it,
+  Google to accept this repo's upload key instead: Google's own steps are its
+  help page "Use Play App Signing"
+  (https://support.google.com/googleplay/android-developer/answer/9842756),
+  section "Request an upload key reset", with the `upload_certificate.pem`
+  the card gives you as the certificate. Once Google accepts it,
   every build here is an update of your listing.
   `MOBILE_ANDROID_VERSION_CODE_BASE` is the highest version code you ever
   uploaded there; each build's code is that plus the run number.
@@ -209,7 +210,7 @@ and every build reads them.
   that one already shipped) and a build number above everything uploaded
   before; for Android `1.0` unless you pass one. The workflow's `version`
   input overrides both.
-- **Sign-in return scheme** — `eb44-69fc81cf4f6a0ae5ab617e2b` (used by https://www.teachertranslate.com.au/login inside
+- **Sign-in return scheme** — `eb44-69fc81cf4f6a0ae5ab617e2b` (used by https://teachertranslate.eb44.app/login inside
   the app). Derived from your app id; nothing to change.
 
 Secrets (the Apple key, the Play keystore, the push keys) live where every
@@ -288,7 +289,7 @@ app: buy on the phone, have it everywhere.
   a Pub/Sub topic (Google Play's publisher,
   `google-play-developer-notifications@system.gserviceaccount.com`, may
   publish to it) and a subscription that sends each message to
-  `https://www.teachertranslate.com.au/api/apps/<your app id>/eb44/iap/google/notifications`, and name
+  `https://teachertranslate.eb44.app/api/apps/<your app id>/eb44/iap/google/notifications`, and name
   the topic in Play Console → Monetization setup.
 
 1. **Create the products** — App Store Connect → Monetization → In-App
