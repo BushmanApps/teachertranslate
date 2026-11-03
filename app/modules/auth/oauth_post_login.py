@@ -16,7 +16,7 @@ import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import jwt
 from fastapi.responses import RedirectResponse
@@ -252,9 +252,26 @@ def parse_expires_at(value: str | None) -> datetime | None:
 
 
 def _safe_redirect_url(from_url: str | None, base_url: str) -> str:
-    if not from_url:
+    """Return an OAuth continuation only when it stays on this app's origin.
+
+    The continuation receives the newly minted access token, so accepting an
+    arbitrary absolute URL would leak that token to an attacker.  Relative
+    paths are supported, but protocol-relative and backslash forms are
+    rejected because browsers can reinterpret them as another origin.
+    """
+    if not from_url or "\\" in from_url:
         return base_url
-    parsed = urlparse(from_url)
-    if parsed.scheme and parsed.netloc:
-        return from_url
-    return from_url
+
+    try:
+        target = urljoin(base_url.rstrip("/") + "/", from_url)
+        base = urlparse(base_url)
+        parsed = urlparse(target)
+    except (TypeError, ValueError):
+        return base_url
+
+    if (
+        parsed.scheme not in {"http", "https"}
+        or (parsed.scheme, parsed.netloc) != (base.scheme, base.netloc)
+    ):
+        return base_url
+    return target

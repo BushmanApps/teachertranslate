@@ -14,31 +14,32 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Build return URLs from the server-set X-Base44-App-Url header so
-    // checkout always returns to the app's real origin (published URL,
-    // custom domain, or preview). This is the domain that serves the
-    // Android App Links assetlinks.json, so the OS can open the app
-    // directly instead of leaving the user in the browser.
-    const appUrl = req.headers.get('X-Base44-App-Url');
-    if (!appUrl) {
-      console.error('Checkout error: missing X-Base44-App-Url header');
-      return Response.json({ error: 'Unable to determine app URL' }, { status: 500 });
+    const appUrl = Deno.env.get('BASE_URL')?.replace(/\/$/, '');
+    if (!appUrl || !/^https:\/\/[^/]+$/i.test(appUrl)) {
+      console.error('Checkout error: BASE_URL is missing or invalid');
+      return Response.json({ error: 'Checkout is not configured' }, { status: 503 });
     }
 
     const successUrl = `${appUrl}/?subscribed=1`;
     const cancelUrl = `${appUrl}/`;
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'));
+    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
+    const appId = Deno.env.get('BASE44_APP_ID');
+    if (!stripeSecret || !appId) {
+      console.error('Checkout error: Stripe configuration is incomplete');
+      return Response.json({ error: 'Checkout is not configured' }, { status: 503 });
+    }
 
+    const stripe = new Stripe(stripeSecret);
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       discounts: [{ coupon: COUPON_ID }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      customer_email: user.email,
+      customer_email: user.email || undefined,
       metadata: {
-        base44_app_id: Deno.env.get('BASE44_APP_ID'),
+        base44_app_id: appId,
         user_id: user.id,
       },
     });
@@ -46,6 +47,7 @@ Deno.serve(async (req) => {
     return Response.json({ url: session.url });
   } catch (error) {
     console.error('Checkout error:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unable to create checkout session';
+    return Response.json({ error: message }, { status: 500 });
   }
 });
