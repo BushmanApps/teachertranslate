@@ -73,7 +73,7 @@ async def canonical_base_url() -> str:
     )
 
 
-def _header(headers, name: str) -> str | None:
+def header_value(headers, name: str) -> str | None:
     """Case-insensitive header lookup that works on Starlette Headers AND on
     the plain dicts the function proxy / agent loop carry around."""
     getter = getattr(headers, "get", None)
@@ -104,7 +104,7 @@ async def arrival_base_url_from_headers(headers) -> str:
         str(d).strip().lower() for d in app_settings.get("custom_domains") or [] if str(d).strip()
     }
 
-    for candidate in (_header(headers, "x-forwarded-host"), _header(headers, "host")):
+    for candidate in (header_value(headers, "x-forwarded-host"), header_value(headers, "host")):
         if not candidate:
             continue
         # Proxies may append hops comma-separated; the first is the client-facing one.
@@ -121,7 +121,7 @@ async def arrival_base_url_from_headers(headers) -> str:
             or bare in custom_domains
             or bare in _LOCAL_HOSTS
         ):
-            proto_header = _header(headers, "x-forwarded-proto")
+            proto_header = header_value(headers, "x-forwarded-proto")
             proto = proto_header.split(",")[0].strip().lower() if proto_header else ""
             if proto not in ("http", "https"):
                 proto = "http" if bare in _LOCAL_HOSTS else "https"
@@ -149,7 +149,7 @@ async def arrived_at_dev_stack(headers) -> bool:
     eb44_suffix = "." + settings.EB44_BASE_DOMAIN.lower()
     configured = _bare_host(urlparse((settings.BASE_URL or "").strip()).netloc.lower())
 
-    for candidate in (_header(headers, "x-forwarded-host"), _header(headers, "host")):
+    for candidate in (header_value(headers, "x-forwarded-host"), header_value(headers, "host")):
         host = (candidate or "").split(",")[0].strip().lower()
         if not host:
             continue

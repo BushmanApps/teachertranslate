@@ -25,6 +25,24 @@ _HOP_BY_HOP = frozenset({
     "te", "trailers", "transfer-encoding", "upgrade",
 })
 
+# What Base44 puts on a function call itself, overwriting whatever the caller
+# sent under the same name — measured 2026-11-03 on an echo function on Base44
+# (research/divergence-chasing/2026-11-03-function-call-headers/): a forged
+# X-Base44-App-Url, Base44-App-Id, Base44-Api-Url, Base44-Service-Authorization,
+# Base44-Function-Name, Base44-Functions-Version or X-Base44-Caller-User-Agent
+# reached the function as the platform's value only; a forged Base44-State and
+# an X-Data-Env did not reach it at all. A caller's copy dropped here would
+# otherwise arrive NEXT to ours, and the function would read both values
+# joined ("https://evil.example, https://<app>"). The workflow and automation
+# markers (x-workflow-run, base44-*-automation, base44-scheduled-task) are NOT
+# in the set: Base44 passes a caller's through, and so does this proxy.
+# `base44-state` is handled on its own (a valid one is re-minted, below).
+_PLATFORM_SET = frozenset({
+    "base44-app-id", "base44-api-url", "base44-service-authorization",
+    "base44-function-name", "base44-functions-version", "x-base44-app-url",
+    "x-base44-caller-user-agent", "base44-state", "x-data-env",
+})
+
 
 async def lookup_function(name: str) -> dict | None:
     # Dev override. Inside any dev environment (local `npm run dev` or the
@@ -44,11 +62,19 @@ async def lookup_function(name: str) -> dict | None:
     return await db.coll("_function_configs").find_one({"name": name})
 
 
-async def _build_runtime_headers_from_dict(caller_headers: dict, settings: Settings, function_name: str) -> dict:
+async def _build_runtime_headers_from_dict(
+    caller_headers: dict, settings: Settings, function_name: str, *, http_invoke: bool
+) -> dict:
     """Build runtime headers from an explicit headers dict (no Request needed).
 
     `function_name` is the function being invoked — embedded into the service
-    JWT as `backend_function_name` (production parity, see service_token.mint).
+    JWT as `backend_function_name` (production parity, see service_token.mint)
+    and handed over as `base44-function-name`, as Base44 does on every call
+    kind. `http_invoke` is a call that came in over HTTP (the SDK, a webhook,
+    a fetch); False is the agent loop calling a function as a tool.
+
+    Every name is written lowercase, so a header the platform sets can never
+    sit next to a caller's copy that differs only in case.
     """
     # Base44 hands functions the ARRIVAL address (measured: the same function
     # sees a different Base44-Api-Url per host it was invoked through). The
@@ -59,9 +85,9 @@ async def _build_runtime_headers_from_dict(caller_headers: dict, settings: Setti
     headers = {}
     for key, value in caller_headers.items():
         lower = key.lower()
-        if lower in ("host", "content-length", "accept-encoding") or lower in _HOP_BY_HOP:
+        if lower in ("host", "content-length", "accept-encoding") or lower in _HOP_BY_HOP or lower in _PLATFORM_SET:
             continue
-        headers[key] = value
+        headers[lower] = value
     # Accept-Encoding is the proxy's own to negotiate, never the caller's: the
     # upstream body is relayed DECODED (httpx transparently decodes what it
     # asked for; _filter_response_headers drops content-encoding), so an
@@ -70,23 +96,41 @@ async def _build_runtime_headers_from_dict(caller_headers: dict, settings: Setti
     # the box: the edge-runtime honours a browser's `br` and the client got
     # Brotli garbage — Supabase's gateway had simply never chosen `br`.
 
-    headers["Base44-App-Id"] = settings.APP_ID
-    headers["Base44-Api-Url"] = api_url
-    headers["Base44-Service-Authorization"] = f"Bearer {mint(settings, function_name=function_name)}"
+    headers["base44-app-id"] = settings.APP_ID
+    headers["base44-api-url"] = api_url
+    headers["base44-service-authorization"] = f"Bearer {mint(settings, function_name=function_name)}"
+    headers["base44-function-name"] = function_name
+    if http_invoke:
+        # The app's address as the platform knows it, never the caller's Origin:
+        # the arrival origin, validated (an attached custom domain, the eb44
+        # address, the canonical for a host the app doesn't know). Measured on
+        # Base44, equal to Base44-Api-Url on every call (the app's own host, its
+        # preview host) whatever Origin or X-Origin-URL the caller sent; and on a
+        # live app's checkout: "https://teachertranslate.com.au" on its custom
+        # domain. Base44's captured workflow, automation and agent-tool calls
+        # carry none.
+        headers["x-base44-app-url"] = api_url
+        # "prod" on every measured HTTP invoke, a caller's "draft" overwritten.
+        # (Absent when the caller is the app's signed-in owner — the one call
+        # Base44 runs on the editor's functions; this backend has one version,
+        # and nothing here reads the header, so it is not told apart.)
+        headers["base44-functions-version"] = "prod"
+        # Base44 calls the function as itself and hands it the caller's agent.
+        caller_agent = addresses.header_value(caller_headers, "user-agent")
+        headers["user-agent"] = "Base44-Backend"
+        if caller_agent:
+            headers["x-base44-caller-user-agent"] = caller_agent
 
-    incoming_state = caller_headers.get("base44-state") or caller_headers.get("Base44-State")
-    if incoming_state:
-        if validate_state_token(incoming_state, settings):
-            headers["base44-state"] = mint_state_token(settings)
-        else:
-            headers.pop("base44-state", None)
+    incoming_state = addresses.header_value(caller_headers, "base44-state")
+    if incoming_state and validate_state_token(incoming_state, settings):
+        headers["base44-state"] = mint_state_token(settings)
 
     return headers
 
 
 async def build_runtime_headers(request: Request, settings: Settings, function_name: str) -> dict:
     caller_headers = dict(request.headers)
-    return await _build_runtime_headers_from_dict(caller_headers, settings, function_name)
+    return await _build_runtime_headers_from_dict(caller_headers, settings, function_name, http_invoke=True)
 
 
 async def proxy_to_function(
@@ -192,7 +236,7 @@ async def invoke_function(
         raise AppHTTPException(404, f"Backend function '{function_name}' not found or not deployed")
 
     deployed_url = config["deployed_url"].rstrip("/") + "/"
-    headers = await _build_runtime_headers_from_dict(caller_headers, settings, function_name)
+    headers = await _build_runtime_headers_from_dict(caller_headers, settings, function_name, http_invoke=False)
 
     target_url = deployed_url
     if query_string:
