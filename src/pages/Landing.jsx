@@ -69,7 +69,7 @@ export default function Landing() {
               <span className="text-xl sm:text-2xl">🤣</span>
               <div>
                 <p className="font-bold text-[13px] sm:text-sm">Hilarious Mode</p>
-                <p className="text-xs text-muted-foreground">Funny, savage - but never mean</p>
+                <p className="text-xs text-muted-foreground">Funny, witty: but never cruel</p>
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 items-start">
