@@ -88,6 +88,15 @@ function buildReportBlocks(report, shareMode, studentName, studentYear) {
   return fontEmailHtml(blocks.join("\n"));
 }
 
+function buildReportEmailHtml(report, shareMode, studentName, studentYear, copyNotice = '') {
+  const copy = copyNotice
+    ? `<p style="font-size:13px;line-height:1.6;color:#73738c;margin:0 0 16px;">${escapeHtml(copyNotice)}</p>`
+    : '';
+  const blocks = buildReportBlocks(report, shareMode, studentName, studentYear);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your Teacher Translate report</title></head><body style="margin:0;padding:0;background:#f8f6f2;font-family:Helvetica,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f6f2;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#fff;border:1px solid #dad7ea;border-radius:20px;overflow:hidden;"><tr><td style="padding:28px 32px;background:#496b8d;color:#fff;"><a href="https://teachertranslate.com.au" style="color:#fff;text-decoration:none;font-size:26px;font-weight:700;">Teacher Translate</a></td></tr><tr><td style="padding:28px 24px;"><h1 style="margin:0 0 10px;color:#496b8d;font-size:26px;line-height:1.2;">Your translated school report</h1><p style="margin:0 0 16px;color:#73738c;font-size:16px;line-height:1.6;">A school report decoded into plain English with Teacher Translate.</p>${copy}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${blocks}</table><p style="margin:24px 0 0;color:#73738c;font-size:12px;line-height:1.6;">${escapeHtml(DISCLAIMER)}</p></td></tr><tr><td style="padding:20px 24px;text-align:center;background:#f8f6f2;color:#73738c;font-size:13px;line-height:1.5;">Decoded with Teacher Translate<br><a href="https://teachertranslate.com.au" style="color:#496b8d;">teachertranslate.com.au</a></td></tr></table></td></tr></table></body></html>`;
+}
+
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -136,11 +145,7 @@ export default async function(req) {
     };
     const name = boundedStr(translation.student_name, 64);
     const year = boundedStr(translation.student_year, 64);
-    const reportVariables = {
-      report_blocks: buildReportBlocks(report, shareMode, name, year),
-      disclaimer: escapeHtml(DISCLAIMER),
-      copy_notice: '',
-    };
+    const reportHtml = buildReportEmailHtml(report, shareMode, name, year);
 
     // Sending to a custom recipient ("email the report to someone") is a Pro
     // feature and must be the user's own email otherwise — never an open relay.
@@ -200,17 +205,15 @@ export default async function(req) {
       await base44.asServiceRole.integrations.Core.SendEmail({
         to: customRecipient,
         subject: 'A school report decoded with Teacher Translate',
-        template_name: 'ReportShare',
-        variables: reportVariables,
+        html: reportHtml,
         from_name: "Teacher Translate",
       });
       // ...and send a copy to the logged-in user noting who it went to.
-      const copyNotice = `This is a copy of a report you sent to ${escapeHtml(customRecipient)} via Teacher Translate.`;
+      const copyNotice = `This is a copy of a report you sent to ${customRecipient} via Teacher Translate.`;
       await base44.asServiceRole.integrations.Core.SendEmail({
         to: user.email,
         subject: `Copy: A school report decoded with Teacher Translate`,
-        template_name: 'ReportShare',
-        variables: { ...reportVariables, copy_notice: copyNotice },
+        html: buildReportEmailHtml(report, shareMode, name, year, copyNotice),
         from_name: "Teacher Translate",
       });
 
@@ -269,8 +272,8 @@ export default async function(req) {
     } else {
       await base44.asServiceRole.integrations.Core.SendEmail({
         to: user.email,
-        template_name: 'ReportShare',
-        variables: reportVariables,
+        subject: 'Your Teacher Translate report',
+        html: reportHtml,
         from_name: "Teacher Translate",
       });
     }

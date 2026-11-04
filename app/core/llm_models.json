@@ -92,6 +92,10 @@
     "claude_sonnet_4_6": {
       "echo": "claude-sonnet-4-6",
       "route": "anthropic/claude-sonnet-4.6"
+    },
+    "gpt_4o_mini": {
+      "echo": "gpt-4o-mini",
+      "route": "openai/gpt-4o-mini"
     }
   },
   "created": 1783209600,

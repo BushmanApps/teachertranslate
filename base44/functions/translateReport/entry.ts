@@ -343,7 +343,7 @@ ${nums.map((n) => `[${n}] ${sentences[n]}`).join('\n')}
 
 Return EXACTLY ${nums.length} section(s), one per numbered sentence above, with sentence_number set to its number and original_excerpt set to the exact sentence. Set is_teacher_comment false only for student self-reflections/goals.
 ${prompt.split('TASK:')[1].split('3. For each section:')[1].split('4. Provide overall summary.')[0]}`,
-      model: "gemini_3_flash",
+      model: "gpt_4o_mini",
       response_json_schema: batchSchema
     }).then((r) => r?.sections || []).catch((e) => { console.error('Batch failed:', e.message); return []; });
 
@@ -361,7 +361,7 @@ ${prompt.split('TASK:')[1].split('3. For each section:')[1].split('4. Provide ov
     const overallPromise = base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `${prompt.split('TASK:')[0]}
 TASK: Give only the overall summary of this whole report: overall_performance_level ("ahead", "average", "behind" or "unknown"), overall_performance_summary, overall_honest_helpful, overall_brutal (funny), overall_brutal_direct (blunt). Return JSON.`,
-      model: "gemini_3_flash",
+      model: "gpt_4o_mini",
       response_json_schema: { type: "object", properties: { ...responseSchema.properties, sections: undefined } }
     });
 
@@ -388,11 +388,14 @@ TASK: Give only the overall summary of this whole report: overall_performance_le
     }
     const stillMissing = allNums.filter((n) => !byNumber.has(n));
     console.log(`Sentences: ${sentences.length}, translated: ${byNumber.size}, missing: ${stillMissing.length}`);
+    if (stillMissing.length > 0) {
+      throw new Error(`Could not translate every sentence in this report. Missing sentence numbers: ${stillMissing.map((n) => n + 1).join(', ')}`);
+    }
 
     const overall = await overallPromise;
     const result = {
       ...overall,
-      sections: allNums.filter((n) => byNumber.has(n)).map((n) => byNumber.get(n)).filter((s) => s.is_teacher_comment !== false)
+      sections: allNums.map((n) => byNumber.get(n)).filter((s) => s.is_teacher_comment !== false)
     };
 
     // Guarantee every curriculum code (and its outcome + activity) belongs to

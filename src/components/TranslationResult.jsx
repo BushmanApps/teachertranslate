@@ -121,7 +121,7 @@ function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, 
             }`}
           >
             {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {expanded ? "Hide" : "Show"} year level assessment
+            {expanded ? "Hide" : isSubscribed ? "Show year level assessment" : "Show curriculum links and activities"}
           </button>
         ) : (
           <div className="space-y-1">
@@ -144,7 +144,7 @@ function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, 
           </div>
         )
       )}
-      {isSubscribed && expanded && (section.performance_note || section.activity_suggestion || section.ac_code || section.curriculum_codes?.length > 0) && (
+      {expanded && (section.performance_note || section.activity_suggestion || section.ac_code || section.curriculum_codes?.length > 0) && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
@@ -162,6 +162,13 @@ function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, 
 
             // If no codes but there's a performance_note (behaviour etc), show it alone
             if (codes.length === 0) {
+              if (!isSubscribed) {
+                return (
+                  <button onClick={onUpgrade} className={`w-full rounded-lg border border-dashed p-3 text-left text-xs ${isBrutal ? "border-orange-700 text-orange-300" : "border-primary/40 text-primary"}`}>
+                    🔒 Year level expectations are available with Pro
+                  </button>
+                );
+              }
               const note = (section.performance_note === "null" || section.performance_note === null)
                 ? "This comment is not aligned to the Australian Curriculum."
                 : section.performance_note;
@@ -214,13 +221,18 @@ function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, 
 
               return (
                 <div key={idx} className="space-y-1.5">
-                  {note && (
+                  {isSubscribed && note && (
                     <p className={`text-xs rounded-lg p-2 ${isBrutal ? "bg-orange-950/40 text-orange-300 border border-orange-800" : "bg-blue-50 text-blue-800 border border-blue-100"}`}>
                       {colonIdx === -1
                         ? <><span className="text-lg">📚</span> {renderNoteWithLink(note)}</>
                         : <><span className="text-lg">📚</span><span className="text-sm font-bold"> {note.slice(0, colonIdx + 1)}</span><br />{renderNoteWithLink(note.slice(colonIdx + 1).trim())}</>
                       }
                     </p>
+                  )}
+                  {!isSubscribed && (
+                    <button onClick={onUpgrade} className={`w-full rounded-lg border border-dashed p-2 text-left text-xs ${isBrutal ? "border-orange-700 text-orange-300" : "border-primary/40 text-primary"}`}>
+                      🔒 Unlock Pro to view this student's year level expectations
+                    </button>
                   )}
                   <div className={`text-xs rounded-lg p-3 space-y-2 ${isBrutal ? "bg-zinc-700 text-zinc-200 border border-zinc-600" : "bg-green-50 text-green-900 border border-green-100"}`}>
                     {entry.activity_suggestion && entry.activity_suggestion !== "null" && (
