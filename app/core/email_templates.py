@@ -21,6 +21,23 @@ batteries):
 - a template's `<title>` is its subject: the first `<title>` element,
   wherever it sits, leaves the html that is sent, and its text — entities
   decoded, trimmed — is the subject unless the sender passed one.
+
+A template written in MJML is compiled, the way Base44's own template
+registry holds it (measured 2026-11-03 on the probe account: its template API
+answers "inbox-ready HTML" and its test sender mails the same;
+research/divergence-chasing/2026-11-02-mjml-email-templates):
+
+- a file is MJML when, past leading whitespace and html comments, it opens
+  with `<mjml` in any case; anything else (an xml declaration first, an html
+  document holding an `<mjml>` element) is html and is kept as written;
+- MJML is compiled with mrml's defaults — byte for byte what Base44 holds, on
+  every case measured — and Base44 then puts one Google Fonts stylesheet link
+  per font the email names right before `</head>` (`_google_fonts_block`);
+- `{{ placeholders }}` survive the compile (in text, a `<mj-title>` that
+  becomes the `<title>`, and attributes alike), so the senders fill the
+  compiled html the same way they fill an html template;
+- a file mrml cannot compile is no template at all: Base44 does not list it,
+  so a send that names it answers the not-found message.
 """
 
 from __future__ import annotations
@@ -37,6 +54,78 @@ NOT_FOUND = "Email template '{name}' not found. Check the name matches a file in
 
 _PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 _TITLE = re.compile(r"<title\b[^>]*>(.*?)</title\s*>", re.IGNORECASE | re.DOTALL)
+_LEADING_COMMENT = re.compile(r"\s*<!--.*?-->", re.DOTALL)
+
+# What Base44 reads a font from: the first family of every `font-family`
+# declaration in the compiled html, head and body, in order; a family is
+# linked once (case counts: `roboto slab` and `Roboto Slab` are two links).
+_FONT_FAMILY = re.compile(r"font-family\s*:\s*([^;\"}]+)", re.IGNORECASE)
+_FONT_NAME = re.compile(r"^[A-Za-z0-9 _.\-]+$")
+# The families Base44 links no stylesheet for — every name here was measured
+# unlinked, in any case (probes 03 and 04). Measured LINKED, so not here:
+# Garamond, Comic Sans MS, Arial Black, Geneva, Lucida, Lucida Console,
+# Lucida Sans Unicode, Trebuchet, Gill Sans, Optima, Candara, cursive, fantasy,
+# emoji, initial, unset, a made-up name — and every Google font tried.
+_SYSTEM_FONTS = frozenset(
+    name.lower()
+    for name in (
+        "Arial", "Helvetica", "Helvetica Neue", "Georgia", "Verdana", "Tahoma",
+        "Times", "Times New Roman", "Courier", "Courier New", "Trebuchet MS",
+        "Segoe UI", "Impact", "Palatino", "Palatino Linotype", "Book Antiqua",
+        "Lucida Grande", "Calibri", "Cambria", "Consolas", "Monaco", "Menlo",
+        "system-ui", "-apple-system", "BlinkMacSystemFont", "ui-sans-serif",
+        "ui-serif", "ui-monospace", "sans-serif", "serif", "monospace", "inherit",
+    )
+)
+
+
+def is_mjml(source: str) -> bool:
+    rest = source
+    while (comment := _LEADING_COMMENT.match(rest)) is not None:
+        rest = rest[comment.end():]
+    return rest.lstrip()[:5].lower() == "<mjml"
+
+
+def _google_fonts_block(html: str) -> str:
+    families: list[str] = []
+    for value in _FONT_FAMILY.findall(html):
+        family = value.split(",")[0].strip().strip("'\"").strip()
+        if (
+            family
+            and _FONT_NAME.match(family)
+            and family.lower() not in _SYSTEM_FONTS
+            and family not in families
+        ):
+            families.append(family)
+    if not families:
+        return ""
+    links = "".join(
+        f'<link href="https://fonts.googleapis.com/css2?family={family.replace(" ", "+")}'
+        ':wght@400;500;600;700&amp;display=swap" rel="stylesheet" type="text/css">'
+        for family in families
+    )
+    return f"<!--[if !mso]><!-->{links}<!--<![endif]-->"
+
+
+def inbox_html(source: str) -> str | None:
+    """What Base44's registry holds for a template file: an MJML file
+    compiled, any other file as written — None for an MJML file that does not
+    compile, which is no template."""
+    if not is_mjml(source):
+        return source
+    import mrml  # only an app with an MJML template ever loads it
+
+    try:
+        html = mrml.to_html(source).content
+    except Exception:
+        # mrml raises for a file it cannot parse (an OSError naming the
+        # position); whatever the reason, Base44 keeps no template for it.
+        return None
+    block = _google_fonts_block(html)
+    if not block:
+        return html
+    head_end = html.find("</head>")
+    return html[:head_end] + block + html[head_end:]
 
 
 def render(source: str, variables: dict | None, *, escape: bool) -> str:
@@ -68,15 +157,22 @@ async def find(name: str) -> str | None:
 
 
 async def converge(files: dict[str, str]) -> dict:
-    """Converge the runtime copy onto the repo's `base44/emails/**.html`.
-    A template whose file is gone is deleted: the next send answers the
-    not-found message, which is the file-deleted state on Base44 (their read
-    is live from the file tree)."""
-    wanted = {
-        path[len(ROOT):-len(".html")]: text
-        for path, text in files.items()
-        if path.startswith(ROOT) and path.endswith(".html")
-    }
+    """Converge the runtime copy onto the repo's `base44/emails/**.html`,
+    each held as `inbox_html` makes it. A template whose file is gone, or no
+    longer compiles, is deleted: the next send answers the not-found message,
+    which is the file-deleted state on Base44 (their read is live from the
+    file tree)."""
+    wanted: dict[str, str] = {}
+    not_templates: list[str] = []
+    for path, text in files.items():
+        if not (path.startswith(ROOT) and path.endswith(".html")):
+            continue
+        name = path[len(ROOT):-len(".html")]
+        body = inbox_html(text)
+        if body is None:
+            not_templates.append(name)
+        else:
+            wanted[name] = body
     now = utcnow_naive()
 
     upserted, unchanged = [], 0
@@ -94,4 +190,9 @@ async def converge(files: dict[str, str]) -> dict:
         await db.coll(COLLECTION).delete_one({"_id": doc["_id"]})
         removed.append(doc["_id"])
 
-    return {"upserted": upserted, "removed": removed, "unchanged_count": unchanged}
+    return {
+        "upserted": upserted,
+        "removed": removed,
+        "unchanged_count": unchanged,
+        "not_templates": sorted(not_templates),
+    }
