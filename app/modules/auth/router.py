@@ -7,7 +7,9 @@
 
 from fastapi import APIRouter
 
+from app.modules.auth.apple_oauth import apple_callback, apple_login
 from app.modules.auth.apple_signin import apple_native_login, apple_nonce
+from app.modules.auth.facebook_oauth import facebook_callback, facebook_login
 from app.modules.auth.change_password import change_password
 from app.modules.auth.google_oauth import auth_error, google_callback, google_login, logout
 from app.modules.auth.invite_user import invite_user
@@ -39,6 +41,10 @@ oauth_router.add_api_route("/login", google_login, methods=["GET"])
 oauth_router.add_api_route("/callback", google_callback, methods=["GET"])
 oauth_router.add_api_route("/microsoft/login", microsoft_login, methods=["GET"])
 oauth_router.add_api_route("/microsoft/callback", microsoft_callback, methods=["GET"])
+oauth_router.add_api_route("/facebook/login", facebook_login, methods=["GET"])
+oauth_router.add_api_route("/facebook/callback", facebook_callback, methods=["GET"])
+oauth_router.add_api_route("/apple/login", apple_login, methods=["GET"])
+oauth_router.add_api_route("/apple/callback", apple_callback, methods=["GET", "POST"])
 oauth_router.add_api_route("/auth-error", auth_error, methods=["GET"])
 oauth_router.add_api_route("/logout", logout, methods=["GET"])
 

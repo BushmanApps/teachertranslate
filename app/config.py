@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_SECRET: str | None = None
     MICROSOFT_OAUTH_CALLBACK_URL: str | None = None
 
+    FACEBOOK_CLIENT_ID: str | None = None
+    FACEBOOK_CLIENT_SECRET: str | None = None
+    APPLE_WEB_CLIENT_ID: str | None = None
+    APPLE_WEB_TEAM_ID: str | None = None
+    APPLE_WEB_KEY_ID: str | None = None
+    APPLE_WEB_PRIVATE_KEY_P8: str | None = None
+
     # Which email service sends every email the app produces (auth OTP /
     # reset / invite, the SendEmail integration, workflow send_email).
     #   resend — our shared account during the migration window (the default)

@@ -456,7 +456,7 @@
       const showPassword = auth.enable_username_password !== false;
 
       const oauthProviders = [];
-      if (appleSignIn && (auth.enable_google_login || auth.enable_microsoft_login)) oauthProviders.push({ id: "apple", name: "Apple" });
+      if (auth.enable_apple_login) oauthProviders.push({ id: "apple", name: "Apple" });
       if (auth.enable_google_login) oauthProviders.push({ id: "google", name: "Google" });
       if (auth.enable_microsoft_login) oauthProviders.push({ id: "microsoft", name: "Microsoft" });
       if (auth.enable_facebook_login) oauthProviders.push({ id: "facebook", name: "Facebook" });
@@ -480,7 +480,7 @@
           ${showPassword ? renderSignInForm() : ""}
         `;
       } else if (mode === "register") {
-        innerContent = renderRegisterForm();
+        innerContent = `${oauthButtons}${divider}${renderRegisterForm()}`;
       } else if (mode === "otp") {
         innerContent = renderOtpForm();
       } else if (mode === "forgot") {
@@ -684,7 +684,7 @@
       // OAuth
       document.querySelectorAll("[data-provider]").forEach(btn => {
         btn.addEventListener("click", () => {
-          if (btn.dataset.provider === "apple") {
+          if (btn.dataset.provider === "apple" && appleSignIn) {
             signInWithApple(btn);
             return;
           }
