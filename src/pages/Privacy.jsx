@@ -114,8 +114,9 @@ export default function Privacy() {
             content: (
               <ul className="list-disc pl-5 space-y-2 text-sm text-foreground/80">
                 <li><strong>Apple App Store and Google Play:</strong> Used to process subscriptions securely under their respective privacy policies.</li>
-                <li><strong>Gemini / AI models:</strong> Report text is sent to AI providers for translation.</li>
+                <li><strong>OpenAI / AI models:</strong> Report text is sent to AI providers for translation.</li>
                 <li><strong>EscapeBase44:</strong> The platform powering our backend infrastructure.</li>
+                <li><strong>MongoDB / Supabase:</strong> User database storage providing Encryption in Transit, Encryption at Rest, and Encryption in Use.</li>
               </ul>
             )
           },
