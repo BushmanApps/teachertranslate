@@ -200,18 +200,22 @@ function splitIntoSentences(text) {
   }
   if (current) paragraphs.push(current);
 
+  // Keep only real sentences: headings, grade-table rows and legends
+  // ("Spelling Sound", "Semester 1, 2022") have no full stop and are not
+  // teacher comments. Each kept line costs AI work, and the whole function
+  // must finish inside the functions host's time limit.
   const sentences = [];
   for (const paragraph of paragraphs) {
     const matches = paragraph.match(/[^.!?]+[.!?]["'”’)]*|[^.!?]+$/g) || [];
     for (const match of matches) {
       const sentence = match.replace(/\s+/g, " ").trim();
-      if (sentence && /[A-Za-z]/.test(sentence)) sentences.push(sentence);
+      if (sentence && /[A-Za-z]/.test(sentence) && END_PUNCT.test(sentence) && sentence.split(" ").length >= 4) sentences.push(sentence);
     }
   }
   return sentences;
 }
 const BATCH_SIZE = 6;
-const CONCURRENCY = 3;
+const CONCURRENCY = 8;
 
 Deno.serve(async (req) => {
   try {
