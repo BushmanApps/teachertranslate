@@ -126,15 +126,6 @@ export default function Register() {
               </button>
               <button
                 type="button"
-                onClick={() => base44.auth.loginWithProvider("facebook", "/")}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2.5 py-2.5 bg-white hover:bg-gray-50 border-2 border-gray-200 text-foreground font-semibold rounded-2xl text-sm transition-all disabled:opacity-60"
-              >
-                {FACEBOOK_ICON}
-                Continue with Facebook
-              </button>
-              <button
-                type="button"
                 onClick={() => base44.auth.loginWithProvider("apple", "/")}
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2.5 py-2.5 bg-white hover:bg-gray-50 border-2 border-gray-200 text-black font-semibold rounded-2xl text-sm transition-all disabled:opacity-60"
