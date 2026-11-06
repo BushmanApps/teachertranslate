@@ -4,6 +4,7 @@ import { Share2, Mail, Copy, Check, X, Lock, ExternalLink, Loader2 } from "lucid
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { buildFullHTML, openFullResultsHTML } from "@/lib/generateShareHTML";
+import { copyText } from "@/lib/clipboard";
 import { toast } from "@/components/ui/use-toast";
 
 const APP_URL = "https://TeacherTranslate.com.au";
@@ -82,9 +83,13 @@ export default function ShareResultButton({ result, mode, studentName, studentYe
   const fullText = buildFullText(result, shareMode || "honest_helpful", studentName, studentYear);
 
   const handleCopy = async (text, key) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+    try {
+      await copyText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (error) {
+      toast({ title: "Couldn't copy the text", description: "Please try again." });
+    }
   };
 
   const handleNativeShare = async (text) => {
@@ -92,7 +97,7 @@ export default function ShareResultButton({ result, mode, studentName, studentYe
       await navigator.share({ title: "Teacher Translate Results", text });
     } catch (e) {
       if (e.name !== "AbortError") {
-        await navigator.clipboard.writeText(text);
+        await copyText(text);
         setCopied("social");
         setTimeout(() => setCopied(null), 2000);
       }
@@ -148,13 +153,17 @@ export default function ShareResultButton({ result, mode, studentName, studentYe
   };
 
   const handleShareFacebook = async (text) => {
-    await navigator.clipboard.writeText(text);
-    setCopied("fb");
-    toast({ title: "Copied to clipboard!", description: "Paste your translation into the Facebook post." });
-    setTimeout(() => {
-      setCopied(null);
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, "_blank");
-    }, 1200);
+    try {
+      await copyText(text);
+      setCopied("fb");
+      toast({ title: "Copied to clipboard!", description: "Paste your translation into the Facebook post." });
+      setTimeout(() => {
+        setCopied(null);
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`, "_blank");
+      }, 1200);
+    } catch (error) {
+      toast({ title: "Couldn't copy the extract", description: "Please try again." });
+    }
   };
 
   const handleShareX = (text) => {

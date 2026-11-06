@@ -167,29 +167,49 @@ function buildCurriculumContext(entries, studentYear) {
 // Split report text into individual teacher sentences so we can verify
 // the LLM included every one.  Splits on newlines first (reports often
 // have one comment per line) then on sentence-ending punctuation.
-const END_PUNCT = /[.!?]["'”’)]?$/;
+const END_PUNCT = /[.!?]["'”’)]*$/;
 
-// A leading line of a chunk that is a heading / grade table row / footer
-// (e.g. "Teacher Comment", "Number and Algebra D", "Page 21 of 50").
 function isNoiseLine(line) {
-  if (END_PUNCT.test(line)) return false;
-  return line.split(/\s+/).length < 7 || /\d$/.test(line) || /\b[A-Z]$/.test(line) || /:\s*\S+$/.test(line);
+  const normalized = line.replace(/\s+/g, " ").trim();
+  if (!normalized) return true;
+  return /^(teacher comments?|general comments?|learning area|subject|semester \d+|page \d+(?: of \d+)?|english|maths|mathematics|science|hass|the arts|technologies|health and physical education)$/i.test(normalized)
+    || /^[\d\s–—-]+$/.test(normalized);
 }
 
-// Deterministically split the report into complete sentences, joining
-// PDF line-wraps back together and dropping headings/table rows.
 function splitIntoSentences(text) {
-  const chunks = text.replace(/\r/g, '').replace(/[*#_]{1,3}/g, '').split(/(?<=[.!?]["'”’)]?)\s+/);
-  const out = [];
-  for (const chunk of chunks) {
-    const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
-    while (lines.length > 1 && isNoiseLine(lines[0])) lines.shift();
-    const s = lines.join(' ').replace(/\s+/g, ' ').trim();
-    if (s.split(' ').length >= 4 && END_PUNCT.test(s)) out.push(s);
-  }
-  return out;
-}
+  const lines = text
+    .replace(/\r/g, "")
+    .replace(/[*#_]{1,3}/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => !isNoiseLine(line));
+  const paragraphs = [];
+  let current = "";
 
+  for (const line of lines) {
+    if (!current) {
+      current = line;
+      continue;
+    }
+    if (!END_PUNCT.test(current) && /^[a-z(]/.test(line)) {
+      current += ` ${line}`;
+      continue;
+    }
+    paragraphs.push(current);
+    current = line;
+  }
+  if (current) paragraphs.push(current);
+
+  const sentences = [];
+  for (const paragraph of paragraphs) {
+    const matches = paragraph.match(/[^.!?]+[.!?]["'”’)]*|[^.!?]+$/g) || [];
+    for (const match of matches) {
+      const sentence = match.replace(/\s+/g, " ").trim();
+      if (sentence && /[A-Za-z]/.test(sentence)) sentences.push(sentence);
+    }
+  }
+  return sentences;
+}
 const BATCH_SIZE = 6;
 const CONCURRENCY = 3;
 
@@ -268,7 +288,7 @@ TASK:
    - brutal: hilariously savage translation — funny about the situation, never mean about the child.
    - brutal_direct: 1-3 sentence blunt, slightly offensive truth the teacher wants to say but can't (e.g. "won't shut up", "disrupts the class", "is disrespectful"). No threats, slurs, or physical punishment references.
    - performance_level: "ahead", "average", "behind", or "unknown"
-   - curriculum_codes: For academic content, identify ALL matching codes from the list above. For each: code (exact AC code from list only), performance_note ("AC v9.0 [Subject] ${studentYear}: Students learn to [full curriculum content description, never truncated or abbreviated with '..' or '...'] ([code])" + one sentence (no leading punctuation) comparing student to standard), plain_english (1-2 sentences, what ${studentRef} should be able to do), brutal_plain_english (1-2 sentence blunt version), activity_suggestion (specific at-home activity, age-appropriate). For behaviour/no match: empty array []. Never invent codes.
+   - curriculum_codes: For academic content, identify ALL matching codes from the list above. For each: code (exact AC code from list only), performance_note ("AC v9.0 [Subject] ${studentYear}: Students learn to [full curriculum content description, never truncated or abbreviated with '..' or '...'] ([code])" + one sentence (no leading punctuation) comparing student to standard), curriculum_content (the exact full Australian Curriculum content description for this code from the supplied list), plain_english (1-2 sentences, what ${studentRef} should be able to do), brutal_plain_english (1-2 sentence blunt version), activity_suggestion (specific at-home activity, age-appropriate). For behaviour/no match: empty array []. Never invent codes.
    - performance_note, ac_code, activity_suggestion: legacy fields — set to first curriculum_codes entry's values (or null).
 
 4. Provide overall summary.
@@ -298,6 +318,7 @@ Return JSON with sections array and overall fields as per the schema.`;
                   type: "object",
                   properties: {
                     code: { type: "string" },
+                    curriculum_content: { type: "string" },
                     performance_note: { type: "string" },
                     plain_english: { type: "string" },
                     brutal_plain_english: { type: "string" },
@@ -403,10 +424,11 @@ TASK: Give only the overall summary of this whole report: overall_performance_le
     const validCodes = new Set(allEntries.map((e) => e.code));
     const yearInCode = getYearInCode(studentYear);
     for (const s of result?.sections || []) {
+      const curriculumByCode = new Map(allEntries.map((entry) => [entry.code, entry.description]));
       s.curriculum_codes = (s.curriculum_codes || []).filter((c) => {
         const m = c?.code?.match(/^AC9[A-Z]{1,4}(\d+|F)[A-Z]/);
         return m && m[1] === yearInCode && (validCodes.size === 0 || validCodes.has(c.code));
-      });
+      }).map((c) => ({ ...c, curriculum_content: curriculumByCode.get(c.code) || c.curriculum_content || null }));
       if (s.ac_code && !s.curriculum_codes.some((c) => c.code === s.ac_code)) {
         s.ac_code = null;
         s.performance_note = null;

@@ -12,8 +12,69 @@ import YearChangeWarning from "./YearChangeWarning";
 import { base44 } from "@/api/base44Client";
 import TrialLockCard from "./TrialLockCard";
 
+function getCurriculumCodes(section) {
+  if (section.curriculum_codes?.length > 0) return section.curriculum_codes;
+  if (section.ac_code && section.ac_code !== "null") {
+    return [{
+      code: section.ac_code,
+      curriculum_content: section.curriculum_content,
+      performance_note: section.performance_note,
+      activity_suggestion: section.activity_suggestion,
+    }];
+  }
+  return [];
+}
+
+function getCurriculumContent(entry) {
+  if (entry.curriculum_content && entry.curriculum_content !== "null") return entry.curriculum_content;
+  const note = entry.performance_note;
+  const code = entry.code;
+  if (!note || note === "null" || !code) return "";
+  const marker = `(${code})`;
+  const codeIndex = note.indexOf(marker);
+  return (codeIndex >= 0 ? note.slice(0, codeIndex) : note)
+    .replace(/^AC v9\.0[^:]*:\s*/i, "")
+    .trim();
+}
+
+function limitSectionsForTrial(sections) {
+  const actualSections = (sections || []).filter((section) => !section._trial_lock);
+  const totalBySubject = new Map();
+  const hiddenBySubject = new Map();
+
+  for (const section of actualSections) {
+    const subject = section.subject_or_area || "General";
+    totalBySubject.set(subject, (totalBySubject.get(subject) || 0) + 1);
+  }
+  for (const section of sections || []) {
+    if (!section._trial_lock) continue;
+    const subject = section.subject_or_area || "General";
+    hiddenBySubject.set(subject, Math.max(hiddenBySubject.get(subject) || 0, Number(section.hidden_count) || 0));
+  }
+
+  const visibleBySubject = new Map();
+  const limited = [];
+  for (const section of actualSections) {
+    const subject = section.subject_or_area || "General";
+    const visible = (visibleBySubject.get(subject) || 0) + 1;
+    visibleBySubject.set(subject, visible);
+    if (visible > 3) continue;
+
+    limited.push(section);
+    if (visible === 3) {
+      const hiddenCount = Math.max((totalBySubject.get(subject) || 0) - 3, hiddenBySubject.get(subject) || 0);
+      if (hiddenCount > 0) {
+        limited.push({ _trial_lock: true, subject_or_area: subject, hidden_count: hiddenCount });
+      }
+    }
+  }
+  return limited;
+}
+
 function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, showYearExpectations, confirmedYear }) {
   const [expanded, setExpanded] = useState(false);
+  const codes = getCurriculumCodes(section);
+  const hasResources = codes.length > 0 || section.activity_suggestion;
 
   return (
     <motion.div
@@ -21,9 +82,7 @@ function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, 
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       className={`rounded-2xl p-4 space-y-3 ${
-        isBrutal
-          ? "bg-zinc-800 border border-zinc-700"
-          : "bg-white border border-border shadow-sm"
+        isBrutal ? "bg-zinc-800 border border-zinc-700" : "bg-white border border-border shadow-sm"
       }`}
     >
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -43,223 +102,80 @@ function SectionCard({ section, isBrutal, mode, index, isSubscribed, onUpgrade, 
         {mode === "brutal" ? (section.brutal_direct || section.brutal) : mode === "hilarious" ? section.brutal : section.honest_helpful}
       </div>
 
-      {showYearExpectations && (() => {
-        const codes = section.curriculum_codes?.length > 0
-          ? section.curriculum_codes
-          : (section.ac_code && section.ac_code !== "null")
-            ? [{ code: section.ac_code, performance_note: section.performance_note }]
-            : [];
-
-        const noCodesMsg = isBrutal
-          ? "This comment doesn't map to a specific curriculum standard — it's about general classroom stuff."
-          : "This comment relates to " + (section.subject_or_area || "general classroom matters").toLowerCase() + " and doesn't align to a specific Australian Curriculum content description.";
-
-        if (codes.length === 0) {
-          return (
-            <div className={`text-xs rounded-lg p-2 border ${
-              isBrutal ? "bg-orange-950/40 text-orange-300 border-orange-800" : "bg-amber-50 text-amber-800 border-amber-100"
-            }`}>
-              <span className="font-bold">{isBrutal ? "💀 Reality check: " : "📚 Year level expectations: "}</span>
-              {noCodesMsg}
-            </div>
-          );
-        }
-
-        return codes.map((entry, cIdx) => {
-          const note = entry.performance_note;
-          const plainEnglish = isBrutal ? entry.brutal_plain_english : entry.plain_english;
-          const code = entry.code && entry.code !== "null" ? entry.code : null;
-
-          if ((!plainEnglish || plainEnglish === "null") && (!note || note === "null")) {
+      {hasResources && (
+        <div className={`space-y-2 rounded-xl border p-3 text-xs ${
+          isBrutal ? "bg-zinc-700 text-zinc-200 border-zinc-600" : "bg-green-50 text-green-900 border-green-100"
+        }`}>
+          {codes.map((entry, entryIndex) => {
+            const code = entry.code && entry.code !== "null" ? entry.code : null;
+            const content = getCurriculumContent(entry);
+            const acUrl = code ? (getAcUrl(code) || `https://www.australiancurriculum.edu.au/search/?q=${code}`) : null;
             return (
-              <div key={cIdx} className={`text-xs rounded-lg p-2 border ${
-                isBrutal ? "bg-orange-950/40 text-orange-300 border-orange-800" : "bg-amber-50 text-amber-800 border-amber-100"
-              }`}>
-                <span className="font-bold">{isBrutal ? "💀 Reality check: " : "📚 Year level expectations: "}</span>
-                {isBrutal ? "This comment doesn't map to a specific curriculum standard." : "This comment doesn't align to a specific Australian Curriculum content description."}
-              </div>
-            );
-          }
-
-          const acUrl = code ? (getAcUrl(code) || `https://www.australiancurriculum.edu.au/search/?q=${code}`) : null;
-          // Fallback to firstLine if plain_english is missing (older translations)
-          const displayText = (plainEnglish && plainEnglish !== "null")
-            ? plainEnglish
-            : note.split("\n")[0].replace(/^AC v9\.0\s*/i, "");
-
-          return (
-            <div key={cIdx} className={`text-xs rounded-lg p-2 border ${
-              isBrutal ? "bg-orange-950/40 text-orange-300 border-orange-800" : "bg-amber-50 text-amber-800 border-amber-100"
-            }`}>
-              <span className="font-bold">{isBrutal ? "💀 Reality check " : "📚 Year level expectations "}({confirmedYear}): </span>
-              {displayText}
-              {code && acUrl && (
-                <>
-                  {" "}(
+              <div key={`${code || "curriculum"}-${entryIndex}`} className="space-y-1.5">
+                {content && (
+                  <p>
+                    <span className="text-lg">📚</span><span className="text-sm font-bold"> Curriculum content: </span>{content}
+                    {code && acUrl && <> {"("}<a href={acUrl} target="_blank" rel="noopener noreferrer" className="underline font-semibold" onClick={() => base44.analytics.track({ eventName: "australian_curriculum_link_clicked", properties: { code } })}>{code}</a>{")"}</>}
+                  </p>
+                )}
+                {entry.activity_suggestion && entry.activity_suggestion !== "null" && (
+                  <p><span className="text-lg">🏠</span><span className="text-sm font-bold"> Try at home: </span>{entry.activity_suggestion}</p>
+                )}
+                {code && (
                   <a
-                    href={acUrl}
+                    href={`https://www.scootle.edu.au/ec/search?q=${code}&acCode=${code}&v=text&field=title&field=text.all&field=topic`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline font-semibold"
-                    onClick={() => base44.analytics.track({ eventName: "australian_curriculum_link_clicked", properties: { code } })}
+                    className={`inline-flex items-center gap-1 font-semibold underline ${isBrutal ? "text-orange-400" : "text-green-700"}`}
+                    onClick={() => base44.analytics.track({ eventName: "scootle_link_clicked", properties: { code } })}
                   >
-                    {code}
-                  </a>)
-                </>
-              )}
-            </div>
-          );
-        });
-        })()}
+                    Find Scootle resources for {code} <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
+              </div>
+            );
+          })}
+          {!codes.length && section.activity_suggestion && section.activity_suggestion !== "null" && (
+            <p><span className="text-lg">🏠</span><span className="text-sm font-bold"> Try at home: </span>{section.activity_suggestion}</p>
+          )}
+        </div>
+      )}
 
-      {(section.performance_note || section.activity_suggestion || section.ac_code || section.curriculum_codes?.length > 0) && (
-        isSubscribed ? (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className={`flex items-center gap-1 text-xs font-semibold w-full text-left ${
-              isBrutal ? "text-orange-400" : "text-primary"
-            }`}
-          >
-            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {expanded ? "Hide" : isSubscribed ? "Show year level assessment" : "Show curriculum links and activities"}
-          </button>
-        ) : (
-          <div className="space-y-1">
-            <button
-              onClick={onUpgrade}
-              className={`flex items-center gap-1 text-xs font-semibold w-full text-left opacity-60 ${
-                isBrutal ? "text-orange-400" : "text-primary"
-              }`}
-            >
-              🔒 Supporting activities you can do at home — Pro only
-            </button>
-            <button
-              onClick={onUpgrade}
-              className={`flex items-center gap-1 text-xs font-semibold w-full text-left opacity-60 ${
-                isBrutal ? "text-orange-400" : "text-primary"
-              }`}
-            >
-              🔒 Year level assessment — Pro only
-            </button>
+      {showYearExpectations && codes.map((entry, entryIndex) => {
+        const code = entry.code && entry.code !== "null" ? entry.code : null;
+        const expectation = isBrutal ? entry.brutal_plain_english : entry.plain_english;
+        if (!expectation || expectation === "null") return null;
+        const acUrl = code ? (getAcUrl(code) || `https://www.australiancurriculum.edu.au/search/?q=${code}`) : null;
+        return (
+          <div key={`expectation-${entryIndex}`} className={`text-xs rounded-lg p-2 border ${
+            isBrutal ? "bg-orange-950/40 text-orange-300 border-orange-800" : "bg-amber-50 text-amber-800 border-amber-100"
+          }`}>
+            <span className="font-bold">{isBrutal ? "💀 Reality check " : `📚 Year level expectations (${confirmedYear}): `}</span>
+            {expectation}{code && acUrl && <> {"("}<a href={acUrl} target="_blank" rel="noopener noreferrer" className="underline font-semibold">{code}</a>{")"}</>}
           </div>
-        )
-      )}
-      {expanded && (section.performance_note || section.activity_suggestion || section.ac_code || section.curriculum_codes?.length > 0) && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="space-y-2"
-        >
-          {(() => {
-            // Use curriculum_codes array if available, else fall back to legacy fields
-            const codes = section.curriculum_codes?.length > 0
-              ? section.curriculum_codes
-              : (section.ac_code && section.ac_code !== "null")
-                ? [{ code: section.ac_code, performance_note: section.performance_note, activity_suggestion: section.activity_suggestion }]
-                : [];
+        );
+      })}
 
-            if (codes.length === 0 && !section.performance_note) return null;
-
-            // If no codes but there's a performance_note (behaviour etc), show it alone
-            if (codes.length === 0) {
-              if (!isSubscribed) {
-                return (
-                  <button onClick={onUpgrade} className={`w-full rounded-lg border border-dashed p-3 text-left text-xs ${isBrutal ? "border-orange-700 text-orange-300" : "border-primary/40 text-primary"}`}>
-                    🔒 Year level expectations are available with Pro
-                  </button>
-                );
-              }
-              const note = (section.performance_note === "null" || section.performance_note === null)
-                ? "This comment is not aligned to the Australian Curriculum."
-                : section.performance_note;
-              const colonIdx = note.indexOf(":");
-              return (
-                <p className={`text-xs rounded-lg p-2 ${isBrutal ? "bg-orange-950/40 text-orange-300 border border-orange-800" : "bg-blue-50 text-blue-800 border border-blue-100"}`}>
-                  {colonIdx === -1
-                    ? <><span className="text-lg">📚</span> {note}</>
-                    : <><span className="text-lg">📚</span><span className="text-sm font-bold"> {note.slice(0, colonIdx + 1)}</span>{note.slice(colonIdx + 1)}</>
-                  }
-                </p>
-              );
-            }
-
-            return codes.map((entry, idx) => {
-              const note = (entry.performance_note === "null" || entry.performance_note === null)
-                ? "This comment is not aligned to the Australian Curriculum."
-                : entry.performance_note;
-              const colonIdx = note ? note.indexOf(":") : -1;
-
-              // Extract curriculum code from brackets e.g. "(AC9E3LY01)" in the note
-              const codeInNote = entry.code && entry.code !== "null" ? entry.code : null;
-
-              // Render note with the curriculum code inline as a link (no extra full stop, same line)
-              const renderNoteWithLink = (noteText) => {
-                if (!codeInNote) return noteText;
-                const acUrl = getAcUrl(codeInNote) || `https://www.australiancurriculum.edu.au/search/?q=${codeInNote}`;
-                const codePattern = `(${codeInNote})`;
-                const codeIdx = noteText.indexOf(codePattern);
-                if (codeIdx === -1) return noteText;
-                // Keep full stop on the sentence, space before the code, new line after
-                const before = noteText.slice(0, codeIdx).trimEnd();
-                const after = noteText.slice(codeIdx + codePattern.length).trim().replace(/^[.\s]+/, "");
-                return (
-                  <span>
-                    {before}{" "}(
-                    <a
-                      href={acUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline font-semibold"
-                      onClick={() => base44.analytics.track({ eventName: "australian_curriculum_link_clicked", properties: { code: codeInNote } })}
-                    >
-                      {codeInNote}
-                    </a>)
-                    {after && <><br /><span className="inline-block mt-1.5">{after}</span></>}
-                  </span>
-                );
-              };
-
-              return (
-                <div key={idx} className="space-y-1.5">
-                  {isSubscribed && note && (
-                    <p className={`text-xs rounded-lg p-2 ${isBrutal ? "bg-orange-950/40 text-orange-300 border border-orange-800" : "bg-blue-50 text-blue-800 border border-blue-100"}`}>
-                      {colonIdx === -1
-                        ? <><span className="text-lg">📚</span> {renderNoteWithLink(note)}</>
-                        : <><span className="text-lg">📚</span><span className="text-sm font-bold"> {note.slice(0, colonIdx + 1)}</span><br />{renderNoteWithLink(note.slice(colonIdx + 1).trim())}</>
-                      }
-                    </p>
-                  )}
-                  {!isSubscribed && (
-                    <button onClick={onUpgrade} className={`w-full rounded-lg border border-dashed p-2 text-left text-xs ${isBrutal ? "border-orange-700 text-orange-300" : "border-primary/40 text-primary"}`}>
-                      🔒 Unlock Pro to view this student's year level expectations
-                    </button>
-                  )}
-                  <div className={`text-xs rounded-lg p-3 space-y-2 ${isBrutal ? "bg-zinc-700 text-zinc-200 border border-zinc-600" : "bg-green-50 text-green-900 border border-green-100"}`}>
-                    {entry.activity_suggestion && entry.activity_suggestion !== "null" && (
-                      <p><span className="text-lg">🏠</span><span className="text-sm font-bold"> Try at home: </span><span className="text-xs">{entry.activity_suggestion}</span></p>
-                    )}
-                    {entry.code && entry.code !== "null" && (
-                      <a
-                        href={`https://www.scootle.edu.au/ec/search?q=${entry.code}&acCode=${entry.code}&v=text&field=title&field=text.all&field=topic`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-1 font-semibold underline ${isBrutal ? "text-orange-400" : "text-green-700"}`}
-                        onClick={() => base44.analytics.track({ eventName: "scootle_link_clicked", properties: { code: entry.code } })}
-                      >
-                        Find Scootle resources for {entry.code} <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </motion.div>
-      )}
+      {hasResources && (isSubscribed ? (
+        <>
+          <button onClick={() => setExpanded(!expanded)} className={`flex items-center gap-1 text-xs font-semibold w-full text-left ${isBrutal ? "text-orange-400" : "text-primary"}`}>
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {expanded ? "Hide year level assessment" : "Show year level assessment"}
+          </button>
+          {expanded && codes.map((entry, entryIndex) => {
+            const note = entry.performance_note;
+            if (!note || note === "null") return null;
+            return <p key={`assessment-${entryIndex}`} className={`text-xs rounded-lg p-2 ${isBrutal ? "bg-orange-950/40 text-orange-300 border border-orange-800" : "bg-blue-50 text-blue-800 border border-blue-100"}`}><span className="text-lg">📚</span><span className="text-sm font-bold"> Year level assessment: </span>{note}</p>;
+          })}
+        </>
+      ) : (
+        <button onClick={onUpgrade} className={`w-full rounded-lg border border-dashed p-2 text-left text-xs ${isBrutal ? "border-orange-700 text-orange-300" : "border-primary/40 text-primary"}`}>
+          🔒 Unlock Pro to view this student's year level assessment
+        </button>
+      ))}
     </motion.div>
   );
 }
-
 export default function TranslationResult({ result, mode, studentName, studentYear, isSubscribed, onUpgrade, isBrutal: isBrutalProp, shareModalOpen, onOpenShare, onCloseShare, exportModalOpen, onOpenExport, onCloseExport, onChangeYear, autoShowExpectations }) {
   const isBrutal = isBrutalProp ?? mode === "brutal";
   const [showYearExpectations, setShowYearExpectations] = useState(!!autoShowExpectations);
@@ -302,6 +218,8 @@ export default function TranslationResult({ result, mode, studentName, studentYe
   };
 
   if (!result) return null;
+
+  const displaySections = isSubscribed ? (result.sections || []) : limitSectionsForTrial(result.sections);
 
   return (
     <div className="space-y-5">
@@ -434,7 +352,7 @@ export default function TranslationResult({ result, mode, studentName, studentYe
               </button>
             )}
           </div>
-          {result.sections.map((section, i) =>
+          {displaySections.map((section, i) =>
             section._trial_lock ? (
               <TrialLockCard
                 key={i}
@@ -452,7 +370,7 @@ export default function TranslationResult({ result, mode, studentName, studentYe
                 index={i}
                 isSubscribed={isSubscribed}
                 onUpgrade={onUpgrade}
-                showYearExpectations={showYearExpectations}
+                showYearExpectations={isSubscribed && showYearExpectations}
                 confirmedYear={confirmedYear}
               />
             )
