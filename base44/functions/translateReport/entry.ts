@@ -219,7 +219,7 @@ function splitIntoSentences(text) {
 // sentence without one is never dropped as the student's, whatever the flag says.
 const FIRST_PERSON = /\b(I|[Mm]y|[Mm]e|[Mm]yself)\b/;
 // How long an AI call takes follows how much it writes: three sentences come back in
-// ~10–40 s, six took 30–75 s. A report's batches all go at once.
+// ~5–40 s, one in ~4–20 s, six took 30–75 s. A report's batches all go at once.
 const BATCH_SIZE = 3;
 const CONCURRENCY = 16;
 // The functions host stops this function's worker 150 s after the worker started, and a
@@ -227,8 +227,10 @@ const CONCURRENCY = 16;
 // bounded so the run answers before that: in full, or with an error the app can show.
 const HOST_LIMIT_MS = 150_000;
 const ANSWER_BY_MS = HOST_LIMIT_MS - 10_000;
-const FIRST_CALL_MS = 50_000;
-const RETRY_CALL_MS = 30_000;
+// About one AI call in fifteen pads its JSON answer with thousands of blank characters
+// and runs for minutes; it isn't waited on past these.
+const FIRST_CALL_MS = 40_000;
+const RETRY_CALL_MS = 20_000;
 const MIN_CALL_MS = 12_000;
 const TIMED_OUT = Symbol('timed out');
 const within = (promise, ms) => {
@@ -387,11 +389,14 @@ Return JSON with sections array and overall fields as per the schema.`;
       }
     };
     const byNumber = new Map();
+    let allIn;
+    const everySentenceIn = new Promise((resolve) => { allIn = resolve; });
     const collect = (secs, nums) => {
       for (const s of secs) {
         const n = Number(s.sentence_number);
         if (nums.includes(n) && !byNumber.has(n)) byNumber.set(n, { ...s, original_excerpt: sentences[n] });
       }
+      if (byNumber.size === sentences.length) allIn();
     };
     // A batch's sentences count whenever its answer lands, even after its wait ended.
     const translateBatch = (nums) => base44.asServiceRole.integrations.Core.InvokeLLM({
@@ -410,15 +415,17 @@ ${prompt.split('TASK:')[1].split('3. For each section:')[1].split('4. Provide ov
     for (let i = 0; i < allNums.length; i += BATCH_SIZE) batches.push(allNums.slice(i, i + BATCH_SIZE));
     console.log(`Translating ${sentences.length} sentences in ${batches.length} batches (worker age ${Math.round(age / 1000)} s)`);
 
-    const overallPromise = base44.asServiceRole.integrations.Core.InvokeLLM({
+    const summarize = () => base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `${prompt.split('TASK:')[0]}
 TASK: Give only the overall summary of this whole report: overall_performance_level ("ahead", "average", "behind" or "unknown"), overall_performance_summary, overall_honest_helpful, overall_brutal (funny), overall_brutal_direct (blunt). Return JSON.`,
       model: "gpt_4o_mini",
       response_json_schema: { type: "object", properties: { ...responseSchema.properties, sections: undefined } }
     }).catch((e) => { console.error('Summary failed:', e.message); return null; });
+    const overallPromise = summarize();
 
-    // Up to CONCURRENCY calls at a time, each waited on for at most callMs. A call that
-    // isn't back by then keeps going, and the retry pass asks for its sentences one by one.
+    // Up to CONCURRENCY calls at a time, each waited on for at most callMs, and no longer
+    // than it takes every sentence to come in. A call that isn't back keeps going, and the
+    // retry pass asks for its sentences one by one.
     const runPool = async (list, callMs) => {
       let next = 0;
       const lane = async () => {
@@ -431,7 +438,7 @@ TASK: Give only the overall summary of this whole report: overall_performance_le
           }
         }
       };
-      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, lane));
+      await Promise.race([Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, lane)), everySentenceIn]);
     };
     await runPool(batches, FIRST_CALL_MS);
 
@@ -448,7 +455,18 @@ TASK: Give only the overall summary of this whole report: overall_performance_le
       throw new Error(`Could not translate every sentence in this report. Missing sentence numbers: ${stillMissing.map((n) => n + 1).join(', ')}`);
     }
 
-    const overall = await within(overallPromise, timeLeft());
+    // The summary went out with the first batches. If it isn't back by now, it's one of
+    // the runaways (or it failed): ask again and take whichever answer comes first.
+    let overall = await within(overallPromise, 0);
+    if (!overall || overall === TIMED_OUT) {
+      console.log('Summary not back yet, asking again');
+      const retry = summarize();
+      const first = new Promise((resolve) => {
+        let left = 2;
+        for (const p of [overallPromise, retry]) p.then((v) => (v ? resolve(v) : --left === 0 && resolve(null)));
+      });
+      overall = await within(first, timeLeft());
+    }
     if (!overall || overall === TIMED_OUT) {
       throw new Error('Could not write the summary of this report. Please try again.');
     }
