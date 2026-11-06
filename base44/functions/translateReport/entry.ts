@@ -214,6 +214,10 @@ function splitIntoSentences(text) {
   }
   return sentences;
 }
+// The AI's is_teacher_comment flag also marks plenty of the teacher's own
+// sentences false. A student's own comment is written in the first person, so a
+// sentence without one is never dropped as the student's, whatever the flag says.
+const FIRST_PERSON = /\b(I|[Mm]y|[Mm]e|[Mm]yself)\b/;
 const BATCH_SIZE = 6;
 const CONCURRENCY = 8;
 
@@ -420,7 +424,7 @@ TASK: Give only the overall summary of this whole report: overall_performance_le
     const overall = await overallPromise;
     const result = {
       ...overall,
-      sections: allNums.map((n) => byNumber.get(n)).filter((s) => s.is_teacher_comment !== false)
+      sections: allNums.map((n) => byNumber.get(n)).filter((s) => s.is_teacher_comment !== false || !FIRST_PERSON.test(s.original_excerpt))
     };
 
     // Guarantee every curriculum code (and its outcome + activity) belongs to
