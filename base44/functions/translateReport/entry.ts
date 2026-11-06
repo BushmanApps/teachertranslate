@@ -169,36 +169,46 @@ function buildCurriculumContext(entries, studentYear) {
 // have one comment per line) then on sentence-ending punctuation.
 const END_PUNCT = /[.!?]["'”’)]*$/;
 
-function isNoiseLine(line) {
-  const normalized = line.replace(/\s+/g, " ").trim();
-  if (!normalized) return true;
-  return /^(teacher comments?|general comments?|learning area|subject|semester \d+|page \d+(?: of \d+)?|english|maths|mathematics|science|hass|the arts|technologies|health and physical education)$/i.test(normalized)
-    || /^[\d\s–—-]+$/.test(normalized);
+// A heading, in markdown ("## General Comment") or as a title on a line of its own
+// ("General comments", "English"), ends whatever came before it.
+function isHeading(raw, line) {
+  return /^\s*#{1,6}\s/.test(raw)
+    || /^(teacher comments?|general comments?|learning area|subject|english|maths|mathematics|science|hass|the arts|technologies|health and physical education)$/i.test(line);
+}
+
+// Page furniture (a page number, "Semester 1", a rule) is skipped, so a sentence a page
+// break cut in two still joins up across it.
+function isPageFurniture(line) {
+  return /^(semester \d+|page \d+(?: of \d+)?)$/i.test(line) || /^[\d\s–—-]+$/.test(line);
 }
 
 function splitIntoSentences(text) {
-  const lines = text
-    .replace(/\r/g, "")
-    .replace(/[*#_]{1,3}/g, "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => !isNoiseLine(line));
+  // A wrapped line joins the line before it, but never across a heading or into a new
+  // list item: what follows those is something else. (With the child's name blacked out,
+  // the teacher's comment under "General Comment" starts in lowercase, and it was being
+  // joined to the student's own last line above the heading.)
   const paragraphs = [];
   let current = "";
-
-  for (const line of lines) {
-    if (!current) {
-      current = line;
+  const close = () => {
+    if (current) paragraphs.push(current);
+    current = "";
+  };
+  for (const raw of text.replace(/\r/g, "").split("\n")) {
+    const line = raw.replace(/[*#_]{1,3}/g, "").replace(/\s+/g, " ").trim();
+    if (isHeading(raw, line)) {
+      close();
       continue;
     }
-    if (!END_PUNCT.test(current) && /^[a-z(]/.test(line)) {
+    if (!line || isPageFurniture(line)) continue;
+    const startsItem = /^\s*([*+-]|\d+[.)])\s/.test(raw);
+    if (current && !startsItem && !END_PUNCT.test(current) && /^[a-z(]/.test(line)) {
       current += ` ${line}`;
       continue;
     }
-    paragraphs.push(current);
+    close();
     current = line;
   }
-  if (current) paragraphs.push(current);
+  close();
 
   // Keep only real sentences: headings, grade-table rows and legends
   // ("Spelling Sound", "Semester 1, 2022") have no full stop and are not
@@ -217,7 +227,8 @@ function splitIntoSentences(text) {
 // The AI's is_teacher_comment flag also marks plenty of the teacher's own
 // sentences false. A student's own comment is written in the first person, so a
 // sentence without one is never dropped as the student's, whatever the flag says.
-const FIRST_PERSON = /\b(I|[Mm]y|[Mm]e|[Mm]yself)\b/;
+// (A grade code like "I - Inconsistent:" is a label, not the word I.)
+const FIRST_PERSON = /\b(I(?!\s*[-–—:])|[Mm]y|[Mm]e|[Mm]yself)\b/;
 // How long an AI call takes follows how much it writes: three sentences come back in
 // ~5–40 s, one in ~4–20 s, six took 30–75 s. A report's batches all go at once.
 const BATCH_SIZE = 3;
