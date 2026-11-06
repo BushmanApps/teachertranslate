@@ -12,7 +12,7 @@ const YEAR_LEVELS = [
   "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12",
 ];
 
-export default function SettingsModal({ isOpen, onClose, studentYear, studentName, creatorEmail, students, activeStudentId, onSelectStudent, onAddNewStudent, onSave, onDelete, isBrutal, hasActiveResult, isSubscribed, subscriptionRenewal, onUpgrade, darkMode, onToggleDarkMode }) {
+export default function SettingsModal({ isOpen, onClose, studentYear, studentName, creatorEmail, creatorName, students, activeStudentId, onSelectStudent, onAddNewStudent, onSave, onDelete, isBrutal, hasActiveResult, isSubscribed, subscriptionRenewal, onUpgrade, darkMode, onToggleDarkMode }) {
   const [year, setYear] = useState(studentYear || "");
   const [name, setName] = useState(studentName || "");
   const isMobile = useIsMobile();
@@ -244,11 +244,12 @@ export default function SettingsModal({ isOpen, onClose, studentYear, studentNam
                 </AnimatePresence>
               </div>
 
-              {creatorEmail && (
+              {(creatorName || creatorEmail) && (
                 <div className="space-y-1">
-                  <label className="text-sm font-bold">Created By</label>
+                  <label className="text-sm font-bold">Signed In As</label>
                   <div className={`w-full rounded-xl border px-4 py-2 text-sm ${isBrutal ? "bg-zinc-800 border-zinc-600 text-zinc-400" : "bg-muted border-border text-muted-foreground"}`}>
-                    {creatorEmail}
+                    {creatorName && <p className="font-semibold text-foreground">{creatorName}</p>}
+                    {creatorEmail && <p className={creatorName ? "text-xs mt-0.5" : ""}>{creatorEmail}</p>}
                   </div>
                 </div>
               )}

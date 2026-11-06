@@ -891,7 +891,8 @@ export default function Home() {
         onClose={closeModal}
         studentYear={activeStudent?.student_year}
         studentName={activeStudent?.student_name}
-        creatorEmail={activeStudent?.creator_email}
+        creatorEmail={currentUser?.email || activeStudent?.creator_email}
+        creatorName={currentUser?.full_name || userProfile?.user_name}
         students={students}
         activeStudentId={activeStudent?.id}
         onSelectStudent={handleSelectStudent}
