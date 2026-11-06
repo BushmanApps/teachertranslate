@@ -218,10 +218,31 @@ function splitIntoSentences(text) {
 // sentences false. A student's own comment is written in the first person, so a
 // sentence without one is never dropped as the student's, whatever the flag says.
 const FIRST_PERSON = /\b(I|[Mm]y|[Mm]e|[Mm]yself)\b/;
-const BATCH_SIZE = 6;
-const CONCURRENCY = 8;
+// How long an AI call takes follows how much it writes: three sentences come back in
+// ~10–40 s, six took 30–75 s. A report's batches all go at once.
+const BATCH_SIZE = 3;
+const CONCURRENCY = 16;
+// The functions host stops this function's worker 150 s after the worker started, and a
+// warm worker can take a new call when it's already up to 75 s old. Every wait below is
+// bounded so the run answers before that: in full, or with an error the app can show.
+const HOST_LIMIT_MS = 150_000;
+const ANSWER_BY_MS = HOST_LIMIT_MS - 10_000;
+const FIRST_CALL_MS = 50_000;
+const RETRY_CALL_MS = 30_000;
+const MIN_CALL_MS = 12_000;
+const TIMED_OUT = Symbol('timed out');
+const within = (promise, ms) => {
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(TIMED_OUT), Math.max(0, ms)); });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+};
 
 Deno.serve(async (req) => {
+  // performance.now() is this worker's age (a reading past the host's limit can't be, so
+  // then the clock starts with this request).
+  const age = performance.now();
+  const deadline = Date.now() + ANSWER_BY_MS - (age < HOST_LIMIT_MS ? age : 0);
+  const timeLeft = () => deadline - Date.now();
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -365,6 +386,14 @@ Return JSON with sections array and overall fields as per the schema.`;
         }
       }
     };
+    const byNumber = new Map();
+    const collect = (secs, nums) => {
+      for (const s of secs) {
+        const n = Number(s.sentence_number);
+        if (nums.includes(n) && !byNumber.has(n)) byNumber.set(n, { ...s, original_excerpt: sentences[n] });
+      }
+    };
+    // A batch's sentences count whenever its answer lands, even after its wait ended.
     const translateBatch = (nums) => base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `${prompt.split('TASK:')[0]}
 SENTENCES TO TRANSLATE NOW (use the full report above only for context, e.g. to work out the subject each sentence belongs to):
@@ -374,46 +403,44 @@ Return EXACTLY ${nums.length} section(s), one per numbered sentence above, with 
 ${prompt.split('TASK:')[1].split('3. For each section:')[1].split('4. Provide overall summary.')[0]}`,
       model: "gpt_4o_mini",
       response_json_schema: batchSchema
-    }).then((r) => r?.sections || []).catch((e) => { console.error('Batch failed:', e.message); return []; });
+    }).then((r) => collect(r?.sections || [], nums)).catch((e) => console.error('Batch failed:', e.message));
 
-    const byNumber = new Map();
-    const collect = (secs, nums) => {
-      for (const s of secs) {
-        const n = Number(s.sentence_number);
-        if (nums.includes(n) && !byNumber.has(n)) byNumber.set(n, { ...s, original_excerpt: sentences[n] });
-      }
-    };
     const allNums = sentences.map((_, i) => i);
     const batches = [];
     for (let i = 0; i < allNums.length; i += BATCH_SIZE) batches.push(allNums.slice(i, i + BATCH_SIZE));
+    console.log(`Translating ${sentences.length} sentences in ${batches.length} batches (worker age ${Math.round(age / 1000)} s)`);
 
     const overallPromise = base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `${prompt.split('TASK:')[0]}
 TASK: Give only the overall summary of this whole report: overall_performance_level ("ahead", "average", "behind" or "unknown"), overall_performance_summary, overall_honest_helpful, overall_brutal (funny), overall_brutal_direct (blunt). Return JSON.`,
       model: "gpt_4o_mini",
       response_json_schema: { type: "object", properties: { ...responseSchema.properties, sections: undefined } }
-    });
+    }).catch((e) => { console.error('Summary failed:', e.message); return null; });
 
-    // Run batches a few at a time so the AI service doesn't reject a burst
-    // of parallel calls (rejected batches were silently dropping sentences).
-    const runLimited = async (list) => {
-      for (let i = 0; i < list.length; i += CONCURRENCY) {
-        const group = list.slice(i, i + CONCURRENCY);
-        const res = await Promise.all(group.map(translateBatch));
-        group.forEach((nums, j) => collect(res[j], nums));
-      }
+    // Up to CONCURRENCY calls at a time, each waited on for at most callMs. A call that
+    // isn't back by then keeps going, and the retry pass asks for its sentences one by one.
+    const runPool = async (list, callMs) => {
+      let next = 0;
+      const lane = async () => {
+        while (next < list.length && timeLeft() > MIN_CALL_MS) {
+          const nums = list[next++].filter((n) => !byNumber.has(n));
+          if (nums.length === 0) continue;
+          const waitMs = Math.min(callMs, timeLeft());
+          if ((await within(translateBatch(nums), waitMs)) === TIMED_OUT) {
+            console.log(`Sentence(s) ${nums.map((n) => n + 1).join(', ')} not back after ${Math.round(waitMs / 1000)} s`);
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, lane));
     };
-    await runLimited(batches);
+    await runPool(batches, FIRST_CALL_MS);
 
-    // Completeness check: retry any sentence that is still missing
-    for (let pass = 0; pass < 3; pass++) {
+    // Completeness check: ask again, one sentence per call, for any sentence still missing
+    for (let pass = 1; pass <= 4; pass++) {
       const missing = allNums.filter((n) => !byNumber.has(n));
-      if (missing.length === 0) break;
-      console.log(`Completeness check pass ${pass + 1}: ${missing.length} sentence(s) missing, retrying`);
-      await new Promise((r) => setTimeout(r, 1500 * (pass + 1)));
-      const retryBatches = [];
-      for (let i = 0; i < missing.length; i += 3) retryBatches.push(missing.slice(i, i + 3));
-      await runLimited(retryBatches);
+      if (missing.length === 0 || timeLeft() <= MIN_CALL_MS) break;
+      console.log(`Completeness check pass ${pass}: ${missing.length} sentence(s) missing, retrying`);
+      await runPool(missing.map((n) => [n]), RETRY_CALL_MS);
     }
     const stillMissing = allNums.filter((n) => !byNumber.has(n));
     console.log(`Sentences: ${sentences.length}, translated: ${byNumber.size}, missing: ${stillMissing.length}`);
@@ -421,7 +448,10 @@ TASK: Give only the overall summary of this whole report: overall_performance_le
       throw new Error(`Could not translate every sentence in this report. Missing sentence numbers: ${stillMissing.map((n) => n + 1).join(', ')}`);
     }
 
-    const overall = await overallPromise;
+    const overall = await within(overallPromise, timeLeft());
+    if (!overall || overall === TIMED_OUT) {
+      throw new Error('Could not write the summary of this report. Please try again.');
+    }
     const result = {
       ...overall,
       sections: allNums.map((n) => byNumber.get(n)).filter((s) => s.is_teacher_comment !== false || !FIRST_PERSON.test(s.original_excerpt))
