@@ -35,7 +35,10 @@ export default function PaywallModal({ isOpen, onClose, isBrutal, variant = "lim
       const iap = window.eb44?.iap;
       const isNative = Boolean(window.eb44?.isMobileApp?.());
       if (isNative && iap && await iap.available()) {
-        const entitlements = await iap.purchase("teacher_translate_pro_users", { type: "subs" });
+        // "general-user" is this subscription's base plan in Google Play: Android
+        // refuses to buy a subscription without its base-plan id ("planIdentifier
+        // cannot be empty"). The App Store has no base plans and ignores it.
+        const entitlements = await iap.purchase("teacher_translate_pro_users", { type: "subs", plan: "general-user" });
         const hasPro = Array.isArray(entitlements) && entitlements.some((item) => item.product_id === "teacher_translate_pro_users");
         if (!hasPro) throw new Error("Your purchase could not be confirmed. Please try restoring purchases.");
         await base44.functions.invoke("checkSubscription", { native: true });

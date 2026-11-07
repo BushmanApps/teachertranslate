@@ -78,7 +78,21 @@ export default function UploadSection({ onTextReady, isBrutal, disabled, onBlock
     setExtractError(null);
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      // Read the picked file into memory right away and upload that copy. A
+      // file picked from Google Drive (or another cloud app) is otherwise read
+      // by the browser at upload time, straight from that app, and on Android
+      // Chrome and the app's web view refuse that upload at once when the cloud
+      // app reports the file's date differently from when it was picked:
+      // nothing is sent and the report never loads.
+      let picked;
+      try {
+        picked = new File([await file.arrayBuffer()], file.name, { type: file.type, lastModified: file.lastModified });
+      } catch (readError) {
+        console.error(readError);
+        setExtractError("We couldn't read that file from where you picked it. Download it to your phone first, then choose it from your Downloads.");
+        return;
+      }
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: picked });
       const res = await base44.functions.invoke("extractTextFromFile", { fileUrl: file_url });
       const text = res.data?.text;
       if (text && text.trim()) {

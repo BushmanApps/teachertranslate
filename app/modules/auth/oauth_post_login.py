@@ -69,7 +69,7 @@ async def post_oauth_login(
     if login.access_request_url:
         return RedirectResponse(url=login.access_request_url, status_code=307)
     access_token = login.access_token or ""
-    redirect_target = _safe_redirect_url(from_url, fallback_base_url)
+    redirect_target = _safe_redirect_url(from_url, fallback_base_url, settings.APP_ID)
     separator = "&" if "?" in redirect_target else "?"
     final_url = f"{redirect_target}{separator}access_token={access_token}"
     if login.is_new_user:
@@ -251,14 +251,25 @@ def parse_expires_at(value: str | None) -> datetime | None:
         return None
 
 
-def _safe_redirect_url(from_url: str | None, base_url: str) -> str:
-    """Return an OAuth continuation only when it stays on this app's origin.
+def _safe_redirect_url(from_url: str | None, base_url: str, app_id: str) -> str:
+    """Return an OAuth continuation only when it stays on this app's origin,
+    or when it is this app's own store-app return address.
 
     The continuation receives the newly minted access token, so accepting an
     arbitrary absolute URL would leak that token to an attacker.  Relative
     paths are supported, but protocol-relative and backslash forms are
     rejected because browsers can reinterpret them as another origin.
     """
+    # The store app (the Android and iPhone app built from this repo by the
+    # EscapeBase44 mobile kit) runs Google, Apple, Facebook and Microsoft
+    # sign-in in an in-app browser tab, with exactly this address as from_url
+    # (see is_mobile_shell in the *_oauth.py files). Sending the tab here hands
+    # the token back to the app, which closes the tab and signs itself in.
+    # Without it the tab opens the website instead, signed in, on top of the
+    # app, and the app stays on its sign-in page. Only this app's own address
+    # is allowed: any other scheme still falls through to the checks below.
+    if from_url == f"eb44-{app_id}://oauth":
+        return from_url
     if not from_url or "\\" in from_url:
         return base_url
 
